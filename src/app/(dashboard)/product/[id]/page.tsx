@@ -2,96 +2,114 @@
 
 import Image from "next/image";
 import React, { useState } from "react";
-import { AiOutlineHeart, AiOutlineShoppingCart } from "react-icons/ai";
+import { AiOutlineShoppingCart } from "react-icons/ai";
+import { SelectorCantidad } from "@/components/menu/SelectorCantidad";
+import { IMenu, IMenuCart } from "@/interfaces";
+import { useCartStore } from "@/store";
 
 interface Props {
+  menu?: IMenu; // `menu` es opcional porque podría no estar disponible inicialmente.
   params: {
     id: string;
   };
 }
 
-const ProductDetails = ({ params }: Props) => {
-  const { id } = params;
+const ProductDetails = ({ menu, params }: Props) => {
+  const id = params.id; // Obteniendo el `id` directamente desde los parámetros de la URL.
 
-  const [quantity, setQuantity] = useState(1);
+  // Asegúrate de que `menu` está definido antes de desestructurarlo.
+  if (!menu) {
+    return <div>Cargando detalles del producto...</div>;
+  } 
+
+  const { nameDish, price, imageUrl, ingredients } = menu;
+
+  const addMenuToCart = useCartStore((state) => state.addMenuToCart);
+  const [quantity, setQuantity] = useState<number>(1);
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
 
   const handleIngredientChange = (ingredient: string) => {
-    setSelectedIngredients((prev) => {
-      if (prev.includes(ingredient)) {
-        return prev.filter((item) => item !== ingredient);
-      } else {
-        return [...prev, ingredient];
-      }
-    });
+    setSelectedIngredients((prev) =>
+      prev.includes(ingredient)
+        ? prev.filter((item) => item !== ingredient)
+        : [...prev, ingredient]
+    );
+  };
+
+
+  const addToCart = () => {
+    const menuCart: IMenuCart = {
+      id,
+      nameDish,
+      price,
+      quantity,
+      imageUrl,
+      ingredients: selectedIngredients,
+    };
+
+    addMenuToCart(menuCart);
+    console.log("Estado del carrito:", useCartStore.getState().cart);
+    setQuantity(1);
+    setSelectedIngredients([]);
   };
 
   return (
-    <div className="min-h-[800px] flex items-center justify-center bg-gray-100 ">
+    <div className="min-h-[800px] flex items-center justify-center bg-gray-100">
       <div className="relative w-[800px] h-[400px] bg-white border-[2px] border-black rounded-xl overflow-hidden shadow-2xl flex">
-        {/* Image Placeholder */}
+        {/* Imagen del Producto */}
         <div className="relative w-1/3 h-full">
           <Image
-            src={"/Fondo-restaurante.jpg"}
-            alt={"Product Image"}
+            src={imageUrl}
+            alt={nameDish}
             layout="fill"
             objectFit="cover"
             className="rounded-l-xl"
           />
         </div>
 
-        {/* Product Information */}
+        {/* Información del Producto */}
         <div className="w-2/3 p-4 flex flex-col justify-between">
           <div>
             <h3 className="text-xl font-bold text-gray-800 text-center">
-              Cheese Burger
+              {nameDish}
             </h3>
-            <p className="text-sm text-center text-gray-600 mt-1">
-              Delicious cheese burger with fresh ingredients.
-            </p>
             <p className="text-lg font-semibold text-gray-800 text-center mt-3">
-              $7.99
+              ${price.toFixed(2)}
             </p>
           </div>
 
-          {/* Quantity Selector */}
+          {/* Selector de Cantidad */}
           <div className="mt-2 flex items-center justify-center">
-            <label htmlFor="quantity" className="mr-2 text-sm">
-              Cantidad:
-            </label>
-            <input
-              type="number"
-              id="quantity"
-              value={quantity}
-              onChange={(e) => setQuantity(Number(e.target.value))}
-              min="1"
-              className="border border-gray-300 p-2 rounded w-16 text-center"
-            />
+            <SelectorCantidad cantidad={quantity} cargarCantidad={setQuantity} />
           </div>
 
-          {/* Ingredients Selector */}
+          {/* Selector de Ingredientes */}
           <div className="mt-2">
             <h4 className="text-sm font-semibold text-center">
               Selecciona Ingredientes:
             </h4>
             <div className="flex flex-col space-y-1 mt-1 justify-center items-center">
-              {["Queso", "Tomate", "Lechuga"].map((ingredient) => (
-                <label key={ingredient} className="flex items-center">
+              {ingredients.map(({ description }) => (
+                <label key={description} className="flex items-center">
                   <input
                     type="checkbox"
-                    checked={selectedIngredients.includes(ingredient)}
-                    onChange={() => handleIngredientChange(ingredient)}
+                    checked={selectedIngredients.includes(description)}
+                    onChange={() => handleIngredientChange(description)}
                     className="mr-2"
                   />
-                  {ingredient}
+                  {description}
                 </label>
               ))}
             </div>
           </div>
 
-          <button className="flex items-center justify-center mt-4 bg-primario-500 hover:bg-primario-600 transition duration-200 rounded-full px-4 py-2 text-white font-medium shadow-lg">
+          {/* Botón para Agregar al Carrito */}
+          <button
+            className="flex items-center justify-center mt-4 bg-primario-500 hover:bg-primario-600 transition duration-200 rounded-full px-4 py-2 text-white font-medium shadow-lg"
+            onClick={addToCart}
+          >
             <AiOutlineShoppingCart size={16} />
-            <span className="ml-2">Agregar</span>
+            <span className="ml-2">Agregar al carrito</span>
           </button>
         </div>
       </div>
