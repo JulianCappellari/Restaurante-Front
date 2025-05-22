@@ -1,54 +1,116 @@
+"use client";
 
-import Image from 'next/image'
-import React from 'react'
-import { AiOutlineHeart, AiOutlineShoppingCart } from 'react-icons/ai'
+import React, { useState } from "react";
+import Image from "next/image";
+import { AiOutlineShoppingCart } from "react-icons/ai";
+import { SelectorCantidad } from "@/components/menu/SelectorCantidad";
+import { IMenu, IMenuCart } from "@/interfaces";
+import { useCartStore } from "@/store";
 
+interface Props {
+  menu: IMenu;
+}
 
-const FoodCardParticular = () => {
+export default function ProductDetails({ menu }: Props) {
+  const [quantity, setQuantity] = useState<number>(1);
+  const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
+  const addMenuToCart = useCartStore((state) => state.addMenuToCart);
+
+  const { id, nameDish, price, imageUrl, ingredients } = menu;
+  const imageSrc = imageUrl?.trim() || "/Fondo-restaurante.jpg";
+
+  const handleIngredientChange = (ingredient: string) => {
+    setSelectedIngredients((prev) =>
+      prev.includes(ingredient)
+        ? prev.filter((item) => item !== ingredient)
+        : [...prev, ingredient]
+    );
+  };
+
+  const addToCart = () => {
+    const menuCart: IMenuCart = {
+      id,
+      nameDish,
+      price,
+      quantity,
+      imageUrl: imageSrc,
+      ingredients: selectedIngredients,
+    };
+
+    addMenuToCart(menuCart);
+    setQuantity(1);
+    setSelectedIngredients([]);
+  };
+
   return (
-    <div className="relative w-[800px] h-[400px] bg-white border-[2px] border-black rounded-xl overflow-hidden shadow-2xl flex flex-row">
-       
-      {/* Like Button */}
-      <button className="absolute right-0 p-1 bg-primario-500 shadow-md rounded-none rounded-bl-lg z-10">
-        <AiOutlineHeart className="text-gray-200" size={20} />
-      </button>
+    <div className="min-h-[800px] flex items-center justify-center bg-gray-100">
+      <div className="relative w-[1400px] h-[700px] bg-white border-[2px] border-black rounded-xl overflow-hidden shadow-2xl flex">
+        {/* Imagen del Producto */}
+        <div className="relative w-1/3 h-full">
+          <Image
+            src={imageSrc}
+            alt={nameDish}
+            layout="fill"
+            objectFit="cover"
+            className="rounded-l-xl"
+          />
+        </div>
 
-      {/* Discount Badge */}
-      <div className="absolute bg-primario-500 text-gray-200 text-sm font-bold px-2 py-1 rounded-r-lg rounded-tr-none z-10">
-        10% OFF
-      </div>
-
-      {/* Image Placeholder */}
-      <div className="relative h-2/3">
-        <Image
-          src={"/Fondo-restaurante.jpg"}
-          alt={"name"}
-          layout="fill"
-          objectFit="cover"
-          className="rounded-t-xl"
-        />
-      </div>
-
-      {/* Product Information */}
-      <div className="p-4">
-        <h3 className="text-lg font-extrabold text-gray-800 text-center">
-          Producto
-        </h3>
-        <p className="text-xs text-center text-gray-600">Product Description</p>
-        <div className="flex justify-between items-center mt-3 px-4">
+        {/* Información del Producto */}
+        <div className="w-2/3 p-4 flex flex-col justify-between">
           <div>
-            <p className="text-lg font-semibold text-gray-800">$10</p>
+            <h3 className="text-xl font-bold text-gray-800 text-center">
+              {nameDish}
+            </h3>
+            <p className="text-lg font-semibold text-gray-800 text-center mt-3">
+              ${Number(price).toFixed(2)}
+            </p>
           </div>
-          <span className="text-gray-400">|</span>
-          <button className="flex items-center space-x-1 bg-primario-500 hover:bg-primario-700 transition duration-200 rounded-full px-4 py-1 text-gray-100 font-medium shadow-lg">
+
+          {/* Selector de Cantidad */}
+          <div className="mt-1 flex items-center justify-center">
+            <SelectorCantidad
+              cantidad={quantity}
+              cargarCantidad={setQuantity}
+            />
+          </div>
+
+          {/* Selector de Ingredientes */}
+          <div className="mt-2">
+            <h4 className="text-sm font-semibold text-center">
+              Selecciona Ingredientes:
+            </h4>
+            <div className="flex flex-col space-y-1 mt-1 justify-center items-center">
+              {Array.isArray(ingredients) && ingredients.length > 0 ? (
+                ingredients.map(({ description }) => (
+                  <label key={description} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedIngredients.includes(description)}
+                      onChange={() => handleIngredientChange(description)}
+                      className="mr-2"
+                    />
+                    {description}
+                  </label>
+                ))
+              ) : (
+                <p className="text-center text-sm text-gray-500">
+                  Este plato no tiene ingredientes personalizados.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Botón para Agregar al Carrito */}
+          <button
+            className="flex items-center justify-center mt-4 bg-primario-500 hover:bg-primario-600 transition duration-200 rounded-full px-4 py-2 text-white font-medium shadow-lg"
+            onClick={addToCart}
+          >
             <AiOutlineShoppingCart size={16} />
-            <span>Agregar</span>
+            <span className="ml-2">Agregar al carrito</span>
           </button>
         </div>
       </div>
-    
     </div>
-  )
+  );
 }
-
-export default FoodCardParticular

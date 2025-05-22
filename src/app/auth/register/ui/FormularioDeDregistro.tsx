@@ -6,15 +6,19 @@ import { SubmitHandler, useForm } from "react-hook-form";
 
 import { UserRoles } from "@/interfaces";
 import { postRegister } from "@/actions";
+import { useRouter } from "next/navigation";
+
 
 interface InputFormulario {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
   password: string;
 }
 
 export default function FormularioDeRegistro() {
+  const router = useRouter()
   const [mensajeError, setMensajeError] = useState("");
   const [mensajeExito, setMensajeExito] = useState("");
   const {
@@ -27,13 +31,14 @@ export default function FormularioDeRegistro() {
   const onSubmit: SubmitHandler<InputFormulario> = async (data) => {
     setMensajeError("");
     setMensajeExito("");
-    const { firstName, lastName, email, password } = data;
+    const { firstName, lastName, email, phone, password } = data;
 
     // Registro con rol por defecto: Customer
     const respuesta = await postRegister(
       firstName,
       lastName,
       email,
+      phone,
       password,
       UserRoles.CUSTOMER
     );
@@ -44,6 +49,7 @@ export default function FormularioDeRegistro() {
     }
 
     setMensajeExito("Usuario registrado exitosamente. ¡Ahora puedes iniciar sesión!");
+    router.push("/auth/login")
 
     reset();
   };
@@ -75,6 +81,15 @@ export default function FormularioDeRegistro() {
         })}
         type="email"
         {...register("email", { required: true, pattern: /^\S+@\S+$/i })}
+      />
+
+      <label htmlFor="phone">Numero de telefono</label>
+      <input
+        className={clsx("px-5 py-2 border bg-gray-200 rounded mb-5", {
+          "border-red-500": errors.phone,
+        })}
+        type="phone"
+        {...register("phone",{required: true})}
       />
 
       <label htmlFor="password">Contraseña</label>

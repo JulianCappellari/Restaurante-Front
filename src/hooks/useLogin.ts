@@ -24,8 +24,8 @@ export const useLogin = () => {
             secure: process.env.NODE_ENV === "production",
             sameSite: "strict",
           });
-          return true; // Indica que el login fue exitoso
           useAuthStore.getState().setAuthenticated(true);
+          return true; // Indica que el login fue exitoso
         }
       } catch (error: any) {
         setErrorMessage(error.response?.data?.message || "Error al iniciar sesión. Intenta de nuevo.");

@@ -9,21 +9,21 @@ const menuItems = [
     name: "Ensalada César",
     price: "$5.00",
     category: "entrada",
-    image: "/ensalada.jpg",
+    image: "/Fondo-restaurante.jpg",
   },
   {
     id: 2,
     name: "Pizza Margherita",
     price: "$10.00",
     category: "principal",
-    image: "/pizza.jpg",
+    image: "/Fondo-restaurante.jpg",
   },
   {
     id: 3,
     name: "Tarta de Chocolate",
     price: "$4.00",
     category: "postre",
-    image: "/tarta.jpg",
+    image: "/Fondo-restaurante.jpg",
   },
   // Agrega más elementos según sea necesario
 ];

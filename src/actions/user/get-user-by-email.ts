@@ -7,7 +7,7 @@ export const getUserByEmail = async (email: string): Promise<IUser | null> => {
   console.log("Buscando usuario por email:", email);
   try {
     const response = await axios.get<IUser>(
-      `${process.env.NEXT_PUBLIC_API_URL}/users/${email}`
+      `${process.env.NEXT_PUBLIC_API_URL2}/users/${email}`
     );
 
     console.log("Usuario obtenido:", response.data);
