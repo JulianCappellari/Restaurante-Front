@@ -1,13 +1,9 @@
 "use client";
-
 import { useCartStore } from "@/store";
-// import { formatoMoneda } from "@/utils";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 
 export const InformacionOrden = () => {
-  const router = useRouter();
-
   const [cargado, setCargado] = useState(false);
   const subTotal = useCartStore((state) => state.getCartSummary().subTotal);
   const taxes = useCartStore((state) => state.getCartSummary().taxes);
@@ -18,29 +14,39 @@ export const InformacionOrden = () => {
     setCargado(true);
   }, []);
 
-  useEffect(() => {
-    if (totalItems === 0 && cargado === true) {
-      router.replace("/empty");
-    }
-  }, [totalItems, cargado, router]);
-
-  if (!cargado) return <p>Cargando...</p>;
+  if (!cargado) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="animate-spin text-primario-500" size={24} />
+      </div>
+    );
+  }
 
   return (
-    <div className="grid grid-cols-2">
-      <span>Nro Productos</span>
-      <span className="text-right">
-        {totalItems === 1 ? "1 articulo" : `${totalItems} articulos`}
-      </span>
+    <div className="space-y-4">
+      <div className="flex justify-between py-2 border-b border-gray-200">
+        <span className="text-gray-600">Productos</span>
+        <span className="font-medium text-gray-800">
+          {totalItems} {totalItems === 1 ? "artículo" : "artículos"}
+        </span>
+      </div>
 
-      <span>Subtotal</span>
-      <span className="text-right">${subTotal}</span>
+      <div className="flex justify-between py-2 border-b border-gray-200">
+        <span className="text-gray-600">Subtotal</span>
+        <span className="font-medium text-gray-800">${subTotal.toFixed(2)}</span>
+      </div>
 
-      <span>Impuestos (21%)</span>
-      <span className="text-right">${taxes}</span>
+      <div className="flex justify-between py-2 border-b border-gray-200">
+        <span className="text-gray-600">Impuestos (21%)</span>
+        <span className="font-medium text-gray-800">${taxes.toFixed(2)}</span>
+      </div>
 
-      <span className="mt-5 text-2xl">Total</span>
-      <span className="text-right mt-5 text-2xl">${total}</span>
+      <div className="flex justify-between pt-4">
+        <span className="text-lg font-semibold text-gray-900">Total</span>
+        <span className="text-lg font-bold text-primario-600">
+          ${total.toFixed(2)}
+        </span>
+      </div>
     </div>
   );
 };

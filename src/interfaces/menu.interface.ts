@@ -18,4 +18,5 @@ export interface IMenuCart {
     price: number;
     quantity: number;
     imageUrl: string;
+    ingredients?: string[];
 }
