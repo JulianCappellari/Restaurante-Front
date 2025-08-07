@@ -15,3 +15,4 @@ export * from "./cuenta/perfil/ClientProfilePage";
 export * from "./direccion/AddressModal";
 export * from "./direccion/skeleton";
 export * from "./cuenta/perfil/UserEditModal"
+export * from "./cuenta/ordenes/OrdersClient"
