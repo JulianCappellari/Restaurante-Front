@@ -1,33 +1,46 @@
+"use client";
 
-import React from "react";
 import { FaMapMarkerAlt } from "react-icons/fa";
-import ButtomGoogleMaps from "../ui/ButtomGoogleMaps";
+import Link from "next/link";
 
-const LocationSection: React.FC = () => {
-  const googleMapsUrl = "https://www.google.com/maps/place/TU_UBICACION"; 
+type Props = {
+  googleMapsUrl?: string;
+  address?: string;
+};
 
+export default function LocationSection({
+  googleMapsUrl = "https://www.google.com/maps/place/TU_UBICACION",
+  address = "Calle Falsa 123, Buenos Aires",
+}: Props) {
   return (
-    <section className="bg-gradient-to-r from-primario-400 via-primario-600 to-primario-400 py-12 px-8 text-center text-white w-full h-auto">
-      <div className="max-w-3xl mx-auto">
-        <h2 className="text-3xl md:text-4xl font-semibold mb-4">
-          Visítanos en Nuestra Ubicación!
-        </h2>
-        <p className="text-lg md:text-xl mb-8">
-          Nos encontramos en un lugar accesible y cómodo, ¡esperamos tu visita
-          para brindarte la mejor experiencia!
+    <section
+      className="w-full rounded-3xl bg-gradient-to-r from-[var(--primario-500)] via-[var(--primario-600)] to-[var(--primario-700)]
+                 px-6 py-10 text-center text-white shadow-lg"
+      aria-label="Ubicación del restaurante"
+    >
+      <div className="mx-auto max-w-3xl">
+        <h3 className="text-3xl md:text-4xl font-semibold">¡Visítanos!</h3>
+        <p className="mt-3 text-lg md:text-xl/relaxed opacity-95">
+          Estamos en una zona accesible. Te esperamos para darte la mejor experiencia.
         </p>
 
-        <div className="flex items-center justify-center mb-6">
-          <FaMapMarkerAlt className="text-4xl md:text-5xl text-primario-200 mr-3" />
-          <span className="text-xl md:text-2xl font-medium">
-            Calle Falsa 123, Buenos Aires
-          </span>
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <FaMapMarkerAlt aria-hidden className="text-2xl md:text-3xl text-[var(--primario-100)]" />
+          <span className="text-base md:text-lg font-medium">{address}</span>
         </div>
 
-        <ButtomGoogleMaps googleMapsUrl={googleMapsUrl} />
+        <div className="mt-8 flex justify-center">
+          <Link
+            href={googleMapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-outline bg-white/10 text-white hover:bg-white/20"
+            aria-label="Abrir ubicación en Google Maps"
+          >
+            Abrir en Google Maps
+          </Link>
+        </div>
       </div>
     </section>
   );
-};
-
-export default LocationSection;
+}

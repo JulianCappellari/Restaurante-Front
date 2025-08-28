@@ -2,28 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== Base tokens ligados a tu paleta ===== */
 @layer base {
   :root {
-    --background: 0 0% 97.6%; /* Fondo Claro: #F9F9F9 */
-    --foreground: 0 0% 17.6%; /* Texto sobre fondo claro */
-    --card: 0 0% 97.6%; /* Fondo para tarjetas o elementos secundarios */
-    --card-foreground: 0 0% 17.6%; /* Texto sobre tarjetas */
-    --popover: 0 0% 97.6%;
-    --popover-foreground: 0 0% 17.6%;
-    --primary: 0 89.6% 57.6%; /* Primario: #FF6F61 */
-    --primary-foreground: 0 0% 100%; /* Texto claro sobre botones primarios */
-    --secondary: 134.8 35.2% 69.4%; /* Secundario: #6FBF73 */
-    --secondary-foreground: 0 0% 17.6%; /* Texto sobre fondo secundario */
-    --muted: 134.8 35.2% 69.4%;
-    --muted-foreground: 0 0% 17.6%;
-    --accent: 134.8 35.2% 69.4%;
-    --accent-foreground: 0 0% 17.6%;
-    --destructive: 0 84.2% 60.2%;
+    /* Fondo y texto */
+    --background: 0 0% 97.6%;
+    --foreground: 0 0% 17.6%;
+
+    /* Superficies */
+    --card: 0 0% 100%;
+    --card-foreground: var(--foreground);
+    --popover: 0 0% 100%;
+    --popover-foreground: var(--foreground);
+
+    /* Brand (usar HSL, no HEX) */
+    --primary: 5 79% 51%;          /* #e52f1d = primario-600 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 123 43% 36%;      /* #358439 = secundario-600 */
+    --secondary-foreground: 0 0% 17.6%;
+
+    /* Estados */
+    --muted: 210 16% 96%;
+    --muted-foreground: 215 16% 35%;
+    --accent: var(--secundario-300);
+    --accent-foreground: var(--foreground);
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
+
+    /* Controles */
     --border: 0 0% 80%;
-    --input: 0 0% 80%;
-    --ring: 0 0% 17.6%;
-    --radius: 0.5rem;
+    --input: 0 0% 100%;            /* inputs siempre blancos */
+    --ring: var(--primario-500);
+
+    /* Misc */
+    --radius: 0.75rem;
+
+    /* Charts */
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
@@ -32,53 +46,60 @@
   }
 
   .dark {
-    --background: 0 0% 17.6%; /* Fondo Oscuro: #2D2D2D */
-    --foreground: 0 0% 100%; /* Texto claro: #FFFFFF */
-    --card: 0 0% 17.6%; /* Fondo de tarjetas en modo oscuro */
-    --card-foreground: 0 0% 100%; /* Texto claro sobre tarjetas */
-    --popover: 0 0% 17.6%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 0 89.6% 57.6%; /* Primario: #FF6F61 */
-    --primary-foreground: 0 0% 100%; /* Texto claro sobre botones primarios */
-    --secondary: 134.8 35.2% 69.4%; /* Secundario: #6FBF73 */
-    --secondary-foreground: 0 0% 100%; /* Texto sobre fondo secundario oscuro */
-    --muted: 134.8 35.2% 69.4%;
-    --muted-foreground: 0 0% 100%;
-    --accent: 134.8 35.2% 69.4%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 25%;
-    --input: 0 0% 25%;
-    --ring: 0 0% 100%;
+    --background: 222 25% 8%;
+    --foreground: 210 20% 98%;
+
+    --card: 222 25% 10%;
+    --card-foreground: 210 20% 98%;
+    --popover: 222 25% 10%;
+    --popover-foreground: 210 20% 98%;
+
+    /* Brand en dark */
+    --primary: 5 93% 60%;          /* #f84c3b = primario-500 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 123 39% 45%;      /* #46a14b = secundario-500 */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 222 25% 14%;
+    --muted-foreground: 215 20% 75%;
+    --accent: var(--secundario-400);
+    --accent-foreground: 222 47% 11%;
+
+    --border: 222 25% 18%;
+    --input: 0 0% 100%;            /* sigue blanco en dark */
+    --ring: var(--primario-400);
+
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
-}
 
-@layer base {
-  * {
-    @apply border-border;
+  * { @apply border-border; }
+  html { scroll-behavior: auto; }
+  body { @apply bg-background text-foreground antialiased; }
+
+  /* Inputs siempre con texto oscuro */
+  input, textarea, select {
+    @apply bg-input text-black;
   }
-  body {
-    @apply bg-background text-foreground;
+}
+
+/* ===== Accesibilidad ===== */
+@layer utilities {
+  .focus-ring { @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background; }
+}
+
+/* ===== Botones ===== */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition-colors
+           disabled:opacity-50 disabled:pointer-events-none focus-visible:focus-ring;
   }
-}
-
-.btn-primary {
-  @apply bg-primario-600 hover:bg-primario-800 text-white py-2 px-4 rounded transition-all;
-}
-
-.btn-secondary {
-  @apply bg-gray-200 hover:bg-gray-300 text-black py-2 px-4 rounded transition-all;
-}
-.btn-desabilitado {
-  @apply bg-gray-600  text-white py-2 px-4 rounded transition-all;
-}
-
-.btn-eliminar {
-  @apply bg-red-500 hover:bg-red-700 text-white py-2 px-4 transition-all;
+  .btn-primary   { @apply btn bg-primary text-primary-foreground hover:opacity-90; }
+  .btn-secondary { @apply btn bg-secondary text-secondary-foreground hover:opacity-90; }
+  .btn-outline   { @apply btn border border-border bg-transparent text-foreground hover:bg-muted; }
+  .btn-ghost     { @apply btn bg-transparent hover:bg-muted; }
+  .btn-destructive { @apply btn bg-destructive text-destructive-foreground hover:opacity-90; }
 }

@@ -1,181 +1,212 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { AiOutlineShoppingCart, AiOutlineCheck } from "react-icons/ai";
-import { SelectorCantidad } from "@/components/menu/SelectorCantidad";
+import {
+  AiOutlineShoppingCart,
+  AiOutlineCheck,
+  AiOutlinePlus,
+  AiOutlineMinus,
+} from "react-icons/ai";
 import { IMenu, IMenuCart } from "@/interfaces";
 import { useCartStore } from "@/store";
 
-interface Props {
-  menu: IMenu;
-}
+interface Props { menu: IMenu }
+
+const parseCurrency = (v: number | string): number => {
+  if (typeof v === "number") return v;
+  const s = v.replace(/[^\d.,-]/g, "");
+  const hasComma = s.includes(",");
+  const hasDot = s.includes(".");
+  if (hasComma && hasDot) return parseFloat(s.replace(/\./g, "").replace(",", ".")) || 0;
+  if (hasComma) return parseFloat(s.replace(",", ".")) || 0;
+  return parseFloat(s) || 0;
+};
+
+const formatARS = (n: number) =>
+  new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
 
 export default function ProductDetails({ menu }: Props) {
-  const [quantity, setQuantity] = useState<number>(1);
-  const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
+  const addMenuToCart = useCartStore((s) => s.addMenuToCart);
+
+  const { nameDish, price, imageUrl, dishCustomizations = [], description = "" } = menu;
+  const imageSrc = imageUrl || "/Fondo-restaurante.jpg";
+
+  const [quantity, setQuantity] = useState(1);
+  const defaultIds = useMemo(
+    () => dishCustomizations.filter((c) => c.isDefaultIncluded || c.isRequired).map((c) => c.id),
+    [dishCustomizations]
+  );
+  const [selectedCustomizations, setSelectedCustomizations] = useState<number[]>(defaultIds);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
-  const addMenuToCart = useCartStore((state) => state.addMenuToCart);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  const { id, nameDish, price, imageUrl, ingredients } = menu;
-  const imageSrc = imageUrl?.trim() || "/Fondo-restaurante.jpg";
+  useEffect(() => { setSelectedCustomizations(defaultIds) }, [defaultIds]);
 
-  const handleIngredientChange = (ingredient: string) => {
-    setSelectedIngredients((prev) =>
-      prev.includes(ingredient)
-        ? prev.filter((item) => item !== ingredient)
-        : [...prev, ingredient]
-    );
+  const toggleCustomization = (id: number, isRequired: boolean) => {
+    if (isRequired) return;
+    setSelectedCustomizations((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   };
 
-  const addToCart = async () => {
-    setIsAddingToCart(true);
-    
-    const menuCart: IMenuCart = {
-      id,
-      nameDish,
-      price,
-      quantity,
-      imageUrl: imageSrc,
-      ingredients: selectedIngredients,
-    };
+  const selectedCustomizationsList = useMemo(
+    () => dishCustomizations.filter((c) => selectedCustomizations.includes(c.id) || c.isRequired),
+    [dishCustomizations, selectedCustomizations]
+  );
 
+  const totalPrice = useMemo(() => {
+    const base = parseCurrency(price as any);
+    const extras = selectedCustomizationsList.reduce((sum, c) => sum + parseCurrency(c.additionalPrice as any), 0);
+    return (base + extras) * quantity;
+  }, [price, selectedCustomizationsList, quantity]);
+
+  const addToCart = () => {
+    setIsAddingToCart(true);
+    const menuCart: IMenuCart = {
+      ...menu,
+      quantity,
+      selectedCustomizations: selectedCustomizations.length ? selectedCustomizations : undefined,
+    };
     addMenuToCart(menuCart);
-    
-    // Simular un pequeño delay para mostrar feedback visual
+    setShowSuccess(true);
     setTimeout(() => {
-      setQuantity(1);
-      setSelectedIngredients([]);
+      setShowSuccess(false);
       setIsAddingToCart(false);
-    }, 500);
+      setQuantity(1);
+      setSelectedCustomizations(defaultIds);
+    }, 1600);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4">
-      <div className="max-w-6xl mx-auto md:mt-10">
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[600px]">
-            {/* Imagen del Producto */}
-            <div className="relative h-[400px] lg:h-full bg-gradient-to-br from-gray-900 to-gray-800">
+    <div className="min-h-screen bg-background py-8 px-4">
+      <div className="mx-auto max-w-6xl md:mt-10">
+        <article className="overflow-hidden rounded-3xl border bg-card text-card-foreground shadow-soft">
+          <div className="grid grid-cols-1 lg:grid-cols-2">
+            {/* Imagen con altura garantizada */}
+            <div className="relative min-h-[360px] lg:min-h-[560px]">
               <Image
                 src={imageSrc}
                 alt={nameDish}
                 fill
+                sizes="(max-width:1024px) 100vw, 50vw"
                 className="object-cover"
                 priority
               />
-              <div className="absolute inset-0 bg-black bg-opacity-20"></div>
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-6">
-                <h1 className="text-3xl lg:text-4xl font-bold text-white mb-2">
-                  {nameDish}
-                </h1>
-                <p className="text-2xl lg:text-3xl font-bold text-primario-400">
-                  ${Number(price).toFixed(2)}
-                </p>
-              </div>
             </div>
 
-            {/* Información del Producto */}
-            <div className="p-8 lg:p-12 flex flex-col justify-between">
-              <div className="space-y-8">
-                {/* Selector de Cantidad */}
-                <div className="space-y-4">
-                  <h3 className="text-xl font-semibold text-gray-800">
-                    Cantidad
-                  </h3>
-                  <div className="flex justify-center">
-                    <SelectorCantidad
-                      cantidad={quantity}
-                      cargarCantidad={setQuantity}
-                    />
-                  </div>
-                </div>
+            {/* Detalle */}
+            <div className="flex flex-col p-6 md:p-10 lg:p-12">
+              {/* Título y precio SIEMPRE visibles */}
+              <header>
+                <h1 className="text-3xl font-bold tracking-tight md:text-4xl">{nameDish}</h1>
+                <p className="mt-2 text-2xl font-bold text-amber-600">{formatARS(parseCurrency(price as any))}</p>
+              </header>
 
-                {/* Selector de Ingredientes */}
-                <div className="space-y-4">
-                  <h3 className="text-xl font-semibold text-gray-800">
-                    Personaliza tu plato
-                  </h3>
-                  <div className="space-y-3">
-                    {Array.isArray(ingredients) && ingredients.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {ingredients.map(({ description }) => (
-                          <label 
-                            key={description} 
-                            className="flex items-center p-3 rounded-lg border-2 border-gray-200 hover:border-primario-300 transition-all duration-200 cursor-pointer group"
+              {description && (
+                <p className="mt-6 leading-relaxed text-muted-foreground">{description}</p>
+              )}
+
+              {/* Personalizaciones */}
+              {dishCustomizations.length > 0 && (
+                <fieldset className="mt-8 mb-3">
+                  <legend className="mb-4 text-lg font-semibold">Personaliza tu plato</legend>
+                  <ul className="space-y-3">
+                    {dishCustomizations.map((c) => {
+                      const isSelected = selectedCustomizations.includes(c.id) || c.isRequired;
+                      const disabled = !c.isRemovable && c.isDefaultIncluded;
+                      const priceDelta = parseCurrency(c.additionalPrice as any);
+                      return (
+                        <li key={c.id}>
+                          <label
+                            className={[
+                              "flex items-center justify-between rounded-lg border p-3 transition-colors",
+                              disabled ? "bg-muted/60 text-muted-foreground cursor-not-allowed"
+                                       : "bg-muted/30 hover:bg-muted cursor-pointer",
+                            ].join(" ")}
                           >
-                            <div className="relative">
+                            <span className="flex items-start gap-3">
                               <input
                                 type="checkbox"
-                                checked={selectedIngredients.includes(description)}
-                                onChange={() => handleIngredientChange(description)}
-                                className="sr-only"
+                                className="mt-1 h-4 w-4 accent-amber-600"
+                                checked={isSelected}
+                                onChange={() => toggleCustomization(c.id, c.isRequired || false)}
+                                disabled={disabled || c.isRequired}
+                                aria-label={c.name}
                               />
-                              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
-                                selectedIngredients.includes(description)
-                                  ? 'bg-primario-500 border-primario-500'
-                                  : 'border-gray-300 group-hover:border-primario-400'
-                              }`}>
-                                {selectedIngredients.includes(description) && (
-                                  <AiOutlineCheck className="text-white text-xs" />
+                              <span>
+                                <span className="font-medium">
+                                  {c.name}
+                                  {disabled && " (Incluido)"}{c.isRequired && " (Requerido)"}
+                                </span>
+                                {c.description && (
+                                  <p className="mt-1 text-xs text-muted-foreground">{c.description}</p>
                                 )}
-                              </div>
-                            </div>
-                            <span className="ml-3 text-gray-700 font-medium">
-                              {description}
+                              </span>
                             </span>
+
+                            {priceDelta !== 0 && (
+                              <span className={priceDelta > 0 ? "text-sm font-medium text-amber-600" : "text-sm font-medium text-green-600"}>
+                                {priceDelta > 0 ? "+" : ""}{formatARS(Math.abs(priceDelta))}
+                              </span>
+                            )}
                           </label>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                          </svg>
-                        </div>
-                        <p className="text-gray-500 font-medium">
-                          Este plato no tiene ingredientes personalizables
-                        </p>
-                      </div>
-                    )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </fieldset>
+              )}
+
+              {/* Cantidad + Total + CTA */}
+              <div className="mt-auto border-t pt-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="text-muted-foreground">Cantidad:</span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                      className="grid h-9 w-9 place-items-center rounded-full bg-muted hover:bg-muted/80 focus-visible:focus-ring"
+                      disabled={quantity <= 1}
+                      aria-label="Disminuir cantidad"
+                    >
+                      <AiOutlineMinus className="h-4 w-4" />
+                    </button>
+                    <span className="w-10 text-center font-medium">{quantity}</span>
+                    <button
+                      onClick={() => setQuantity((q) => q + 1)}
+                      className="grid h-9 w-9 place-items-center rounded-full bg-muted hover:bg-muted/80 focus-visible:focus-ring"
+                      aria-label="Aumentar cantidad"
+                    >
+                      <AiOutlinePlus className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
-              </div>
 
-              {/* Botón para Agregar al Carrito */}
-              <div className="pt-6">
+                <div className="mb-6 flex items-center justify-between">
+                  <span className="text-lg font-semibold">Total:</span>
+                  <span className="text-2xl font-bold text-amber-600">{formatARS(totalPrice)}</span>
+                </div>
+
                 <button
-                  className={`w-full flex items-center justify-center py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-300 shadow-lg ${
-                    isAddingToCart
-                      ? 'bg-green-500 text-white'
-                      : 'bg-primario-500 hover:bg-primario-600 text-white hover:shadow-xl hover:scale-105'
-                  }`}
                   onClick={addToCart}
                   disabled={isAddingToCart}
+                  className="btn-primary w-full justify-center text-base"
+                  aria-busy={isAddingToCart}
                 >
-                  {isAddingToCart ? (
-                    <>
-                      <AiOutlineCheck className="mr-2" size={20} />
-                      ¡Agregado al carrito!
-                    </>
-                  ) : (
-                    <>
-                      <AiOutlineShoppingCart className="mr-2" size={20} />
-                      Agregar al carrito - ${(Number(price) * quantity).toFixed(2)}
-                    </>
-                  )}
+                  {isAddingToCart ? "Añadiendo…" : (<><AiOutlineShoppingCart className="mr-2" />Añadir al carrito</>)}
                 </button>
-                
-                {selectedIngredients.length > 0 && (
-                  <p className="text-sm text-gray-500 text-center mt-3">
-                    {selectedIngredients.length} ingrediente{selectedIngredients.length !== 1 ? 's' : ''} seleccionado{selectedIngredients.length !== 1 ? 's' : ''}
-                  </p>
-                )}
+
+                <div className="mt-4" aria-live="polite" aria-atomic="true">
+                  {showSuccess && (
+                    <div className="flex items-center rounded-lg border border-green-200 bg-green-50 p-3 text-green-700">
+                      <AiOutlineCheck className="mr-2 shrink-0" />
+                      <span>¡Añadido al carrito correctamente!</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+            {/* /Detalle */}
           </div>
-        </div>
+        </article>
       </div>
     </div>
   );
