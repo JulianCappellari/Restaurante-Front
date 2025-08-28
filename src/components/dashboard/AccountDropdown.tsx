@@ -2,21 +2,25 @@
 
 import { Fragment } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { ChevronDownIcon, UserIcon, MapPinIcon, ArrowRightIcon, CreditCardIcon, ListBulletIcon     } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, UserIcon, MapPinIcon, ArrowRightIcon, CreditCardIcon, ListBulletIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import Cookies from 'js-cookie';
-import { useRouter } from 'next/navigation';
+import useAuthStore from '@/store/auth/useAuthStore';
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
 }
 
 export default function AccountDropdown() {
-  const router = useRouter();
+  const setAuthenticated = useAuthStore((state: { setAuthenticated: (status: boolean) => void }) => state.setAuthenticated);
 
   const handleLogout = () => {
+    // Remove token from cookies
     Cookies.remove('token');
-    router.push('/');
+    // Update auth state
+    setAuthenticated(false);
+    // Force a full page reload to ensure all components get the updated auth state
+    window.location.href = '/';
   };
 
   const menuItems = [

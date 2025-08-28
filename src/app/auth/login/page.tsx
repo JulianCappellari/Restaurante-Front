@@ -1,16 +1,22 @@
-import { LoginForm } from "./ui/LoginForm";
-
-
-
-
+import { LoginForm } from "./ui/LoginForm"
 
 export default function Login() {
   return (
-    <div className="flex flex-col min-h-screen pt-32 sm:pt-25 items-center">
-
-      <h1 className={ ` text-4xl mb-5` }>Ingresar</h1>
-        <LoginForm />
-      
-    </div>
-  );
+    <main className="min-h-dvh grid place-items-center px-4 py-24">
+      <section
+        className="w-full max-w-md rounded-2xl bg-card shadow-soft border p-6 md:p-8"
+        aria-labelledby="login-heading"
+      >
+        <h1 id="login-heading" className="text-3xl font-bold tracking-tight text-center">
+          Ingresar
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground text-center">
+          Accedé con tu correo y contraseña
+        </p>
+        <div className="mt-6">
+          <LoginForm />
+        </div>
+      </section>
+    </main>
+  )
 }
