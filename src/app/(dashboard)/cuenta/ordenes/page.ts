@@ -4,48 +4,70 @@ import React, { Suspense } from "react";
 import { getUserOrders } from "@/actions/orders/get-user-orders";
 import { getUserFromToken } from "@/utils/getUserFromToken";
 import { cookies } from "next/headers";
-import { IOrder } from "@/interfaces";
+import { IOrder, IMenu, IOrderItem } from "@/interfaces";
 
 interface DecodedUser {
   id: number;
-  [key: string]: any;
+  email?: string;
+  name?: string;
+}
+
+interface OrderItemWithMenu extends IOrderItem {
+  menu: IMenu | null;
 }
 
 async function OrdersServerPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
   let user: DecodedUser | null = null;
+  
   if (token) {
     const decoded = getUserFromToken(token);
-    // jwt.verify puede devolver string | JwtPayload
     if (decoded && typeof decoded === 'object' && 'id' in decoded) {
       user = decoded as DecodedUser;
     }
   }
-  let orders: IOrder[] = [];
-  let error = null;
+
+  let orders: Array<Omit<IOrder, 'items'> & { items: OrderItemWithMenu[] }> = [];
+  let error: string | null = null;
+  
   if (user) {
     try {
-      orders = await getUserOrders(user.id);
-      // Solo poblar el menú de cada item (los items ya vienen embebidos)
+      const userOrders = await getUserOrders(user.id);
       const { getMenuById } = await import("@/actions/menu/get-menu-by-id");
+      
       orders = await Promise.all(
-        orders.map(async (order) => {
-          let items = order.items ?? [];
-          items = await Promise.all(
-            items.map(async (item) => {
-              let menu = null;
-              try {
-                menu = await getMenuById(item.menuId);
-              } catch (e) {}
-              return { ...item, menu };
+        userOrders.map(async (order) => {
+          const items = await Promise.all(
+            (order.items || []).map(async (item) => {
+              let menu: IMenu | null = null;
+              
+              if (item.menuId) {
+                try {
+                  menu = await getMenuById(item.menuId);
+                } catch (e) {
+                  const error = e as Error;
+                  console.error(`Error fetching menu item ${item.menuId}:`, error.message);
+                }
+              }
+              
+              return {
+                ...item,
+                menu
+              } as OrderItemWithMenu;
             })
           );
-          return { ...order, items };
+          
+          return {
+            ...order,
+            items
+          };
         })
       );
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      const errorObj = e as Error;
+      error = errorObj.message;
+      console.error('Error loading orders:', errorObj);
     }
   }
   // Importar dinámicamente el Client Component para evitar problemas de parsing
@@ -58,8 +80,7 @@ export default function Orders() {
   return React.createElement(
     Suspense,
     { fallback: React.createElement('div', { className: 'text-center py-10' }, 'Cargando pedidos...') },
-    // @ts-expect-error Server Component
-    React.createElement(OrdersServerPage)
+        React.createElement(OrdersServerPage as React.FC)
   );
 }
 

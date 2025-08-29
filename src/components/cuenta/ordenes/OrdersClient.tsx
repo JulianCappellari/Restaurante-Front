@@ -1,10 +1,20 @@
 "use client";
 import React, { useState } from "react";
-import { IOrder } from "@/interfaces";
-import { AlarmClockCheck, Bike, CheckCircle, ChefHat, ClipboardList, Clock } from "lucide-react";
+import { IOrder, IOrderItem } from "@/interfaces";
+import { AlarmClockCheck, Bike, CheckCircle, ChefHat, ClipboardList } from "lucide-react";
+import Image from "next/image";
+
+// Extend the IOrderItem interface to include the menu property
+interface OrderItemWithMenu extends IOrderItem {
+  menu?: {
+    nameDish: string;
+    imageUrl?: string;
+    ingredients?: Array<{ description: string }>;
+  };
+}
 
 type OrdersClientProps = {
-  orders: IOrder[];
+  orders: Array<Omit<IOrder, 'items'> & { items: OrderItemWithMenu[] }>;
   error: string | null;
 };
 
@@ -126,42 +136,50 @@ export default function OrdersClient({ orders, error }: OrdersClientProps) {
               {/* Items del pedido */}
               <div className="flex flex-wrap gap-3">
                 {Array.isArray(order.items) && order.items.length > 0 ? (
-                  order.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 shadow-sm"
-                    >
-                      {item.menu?.imageUrl ? (
-                        <img
-                          src={item.menu.imageUrl}
-                          alt={item.menu.nameDish}
-                          className="w-8 h-8 rounded object-cover"
-                        />
-                      ) : item.imageUrl ? (
-                        <img
-                          src={item.imageUrl}
-                          alt={item.menuName}
-                          className="w-8 h-8 rounded object-cover"
-                        />
-                      ) : null}
-                      <span className="font-medium text-gray-800">
-                        {item.menu?.nameDish || item.menuName}
-                      </span>
-                      {item.menu?.ingredients &&
-                        item.menu.ingredients.length > 0 && (
-                          <span className="text-xs text-gray-500 ml-2 italic">
-                            [
-                            {item.menu.ingredients
-                              .map((ing: any) => ing.description)
-                              .join(", ")}
-                            ]
-                          </span>
+                  order.items.map((item) => {
+                    const itemTotal = Number(item.price) * item.quantity;
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 shadow-sm w-full"
+                      >
+                        {item.imageUrl ? (
+                          <div className="relative w-10 h-10">
+                            <Image
+                              src={item.imageUrl}
+                              alt={item.menuName}
+                              fill
+                              className="rounded object-cover"
+                              sizes="40px"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
+                            <ChefHat className="w-5 h-5 text-gray-400" />
+                          </div>
                         )}
-                      <span className="text-blue-700 text-sm font-bold ml-2">
-                        x{item.quantity}
-                      </span>
-                    </div>
-                  ))
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-800 truncate">
+                            {item.menuName}
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-500">
+                              ${Number(item.price).toFixed(2)} c/u
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-blue-700 text-sm font-bold">
+                                x{item.quantity}
+                              </span>
+                              <span className="text-green-700 font-medium whitespace-nowrap">
+                                ${itemTotal.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
                 ) : (
                   <span className="text-xs text-gray-400 px-2 py-1 bg-gray-100 rounded">
                     Sin items

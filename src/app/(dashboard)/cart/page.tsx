@@ -112,7 +112,7 @@ const CartPage = () => {
                 Productos seleccionados
               </h2>
               <span className="text-sm text-gray-500">
-                {ProductosEnElCarrito.length} items
+                {totalItems} {totalItems === 1 ? 'Item' : 'Items'}
               </span>
             </div>
 

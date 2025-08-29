@@ -98,7 +98,7 @@ export default function ProductDetails({ menu }: Props) {
               {/* Título y precio SIEMPRE visibles */}
               <header>
                 <h1 className="text-3xl font-bold tracking-tight md:text-4xl">{nameDish}</h1>
-                <p className="mt-2 text-2xl font-bold text-amber-600">{formatARS(parseCurrency(price as any))}</p>
+                <p className="mt-2 text-2xl font-bold text-amber-600">${price}</p>
               </header>
 
               {description && (
@@ -145,7 +145,7 @@ export default function ProductDetails({ menu }: Props) {
 
                             {priceDelta !== 0 && (
                               <span className={priceDelta > 0 ? "text-sm font-medium text-amber-600" : "text-sm font-medium text-green-600"}>
-                                {priceDelta > 0 ? "+" : ""}{formatARS(Math.abs(priceDelta))}
+                                {priceDelta > 0 ? "+" : ""}${priceDelta}
                               </span>
                             )}
                           </label>
@@ -182,7 +182,7 @@ export default function ProductDetails({ menu }: Props) {
 
                 <div className="mb-6 flex items-center justify-between">
                   <span className="text-lg font-semibold">Total:</span>
-                  <span className="text-2xl font-bold text-amber-600">{formatARS(totalPrice)}</span>
+                  <span className="text-2xl font-bold text-amber-600">${totalPrice}</span>
                 </div>
 
                 <button
