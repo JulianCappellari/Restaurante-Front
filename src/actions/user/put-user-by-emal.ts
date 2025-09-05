@@ -11,7 +11,7 @@ export type UpdateUserDTO = {
   email?: string;
   phone?: string;
   password?: string;
-  rol?: 'Administrator' | 'Waiter' | 'Customer';
+  role?: 'Administrator' | 'Waiter' | 'Customer' | 'Receptionist' | 'Chef';
 };
 
 export const putUserByEmail = async (id: number, data: Partial<IUser>) => {

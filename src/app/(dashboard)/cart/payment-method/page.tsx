@@ -5,6 +5,7 @@ import { CreditCard, PlusCircle, DollarSign, X } from "lucide-react";
 import { postPaymentMethod } from "@/actions/payment-methods/post-payment.methods";
 import { getPaymentMethods } from "@/actions/payment-methods/get-payment-methods";
 import { getUserIdFromToken } from "@/utils/getUserIdFromToken";
+import { type OrderPayload } from "@/actions/orders/post-order";
 import router from "next/router";
 
 export default function PaymentMethod() {
@@ -14,58 +15,63 @@ export default function PaymentMethod() {
   const [newCard, setNewCard] = useState({ type: "", last4: "" });
 
   const [name, setName] = useState("");
-const [cardNumber, setCardNumber] = useState("");
-const [expMonth, setExpMonth] = useState("");
-const [expYear, setExpYear] = useState("");
-const [cvv, setCvv] = useState("");
-const [errors, setErrors] = useState<any>({});
-const [loading, setLoading] = useState(false);
+  const [cardNumber, setCardNumber] = useState("");
+  const [expMonth, setExpMonth] = useState("");
+  const [expYear, setExpYear] = useState("");
+  const [cvv, setCvv] = useState("");
+  const [errors, setErrors] = useState<any>({});
+  const [loading, setLoading] = useState(false);
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  const newErrors: any = {};
-  if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/.test(name)) {
-    newErrors.name = "El nombre solo puede contener letras y espacios.";
-  }
-  if (!/^\d{16}$/.test(cardNumber)) {
-    newErrors.cardNumber = "El número de tarjeta debe tener 16 dígitos numéricos.";
-  }
-  if (!/^\d{2}$/.test(expMonth) || +expMonth < 1 || +expMonth > 12) {
-    newErrors.expMonth = "Mes inválido.";
-  }
-  if (!/^\d{4}$/.test(expYear)) {
-    newErrors.expYear = "Año inválido.";
-  }
-  if (!/^\d{3,4}$/.test(cvv)) {
-    newErrors.cvv = "El CVV debe tener 3 o 4 dígitos numéricos.";
-  }
-  setErrors(newErrors);
-  if (Object.keys(newErrors).length) return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const newErrors: any = {};
+    if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/.test(name)) {
+      newErrors.name = "El nombre solo puede contener letras y espacios.";
+    }
+    if (!/^\d{16}$/.test(cardNumber)) {
+      newErrors.cardNumber =
+        "El número de tarjeta debe tener 16 dígitos numéricos.";
+    }
+    if (!/^\d{2}$/.test(expMonth) || +expMonth < 1 || +expMonth > 12) {
+      newErrors.expMonth = "Mes inválido.";
+    }
+    if (!/^\d{4}$/.test(expYear)) {
+      newErrors.expYear = "Año inválido.";
+    }
+    if (!/^\d{3,4}$/.test(cvv)) {
+      newErrors.cvv = "El CVV debe tener 3 o 4 dígitos numéricos.";
+    }
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length) return;
 
-  setLoading(true);
-  try {
-    const expirationDate = `${expMonth}/${expYear}`;
-    const userId = getUserIdFromToken();
-    await postPaymentMethod({
-      name,
-      cardNumber,
-      expirationDate,
-      cvv,
-      status: "true",
-      userId,
-    });
-    // Recarga métodos de pago reales
-    const updated = await getPaymentMethods();
-    setPaymentMethods(updated);
-    setShowModal(false);
-    setName(""); setCardNumber(""); setExpMonth(""); setExpYear(""); setCvv("");
-    // Opcional: mostrar feedback de éxito
-  } catch (error) {
-    alert("Error al agregar la tarjeta. Intenta nuevamente.");
-  } finally {
-    setLoading(false);
-  }
-};
+    setLoading(true);
+    try {
+      const expirationDate = `${expMonth}/${expYear}`;
+      const userId = getUserIdFromToken();
+      await postPaymentMethod({
+        name,
+        cardNumber,
+        expirationDate,
+        cvv,
+        status: "true",
+        userId,
+      });
+      // Recarga métodos de pago reales
+      const updated = await getPaymentMethods();
+      setPaymentMethods(updated);
+      setShowModal(false);
+      setName("");
+      setCardNumber("");
+      setExpMonth("");
+      setExpYear("");
+      setCvv("");
+      // Opcional: mostrar feedback de éxito
+    } catch (error) {
+      alert("Error al agregar la tarjeta. Intenta nuevamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Cargar métodos de pago reales
   useEffect(() => {
@@ -86,10 +92,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   const handleAddCard = () => {
     if (newCard.type && newCard.last4.length === 4) {
-      setPaymentMethods([
-        ...paymentMethods,
-        { id: Date.now(), ...newCard },
-      ]);
+      setPaymentMethods([...paymentMethods, { id: Date.now(), ...newCard }]);
       setShowModal(false);
       setNewCard({ type: "", last4: "" });
     }
@@ -176,60 +179,146 @@ const handleSubmit = async (e: React.FormEvent) => {
               const userId = getUserIdFromToken();
               // console.log("[CONFIRMAR] userId:", userId);
               // Obtener dirección seleccionada
-              const { useCheckoutStore } = await import("@/store/checkout/checkout-store");
-              const selectedAddress = useCheckoutStore.getState().selectedAddress;
+              const { useCheckoutStore } = await import(
+                "@/store/checkout/checkout-store"
+              );
+              const selectedAddress =
+                useCheckoutStore.getState().selectedAddress;
               // console.log("[CONFIRMAR] selectedAddress:", selectedAddress);
               // Obtener carrito y total
               const { useCartStore } = await import("@/store/cart/cart-store");
               const cart = useCartStore.getState().cart;
-              const cartSummary = useCartStore.getState().getCartSummary();
-              // console.log("[CONFIRMAR] cart:", cart);
-              // console.log("[CONFIRMAR] cartSummary:", cartSummary);
 
-              // Armar items
-              const items = cart.map((item) => ({
-                menuId: item.id,
-                quantity: item.quantity,
-                notes: ""
-              }));
-              // console.log("[CONFIRMAR] items armados:", items);
-
-              // Determinar tipo de pago y método
-              let paymentType: "cash" | "card" | "mp" = "cash";
-              let paymentMethodId: number | null = null;
-              if (selected === "cash") {
-                paymentType = "cash";
-                paymentMethodId = null;
-                // console.log("[CONFIRMAR] Pago en efectivo");
-              } else {
-                paymentType = "card";
-                paymentMethodId = Number(selected);
-                // console.log("[CONFIRMAR] Pago con tarjeta, id:", paymentMethodId);
+              if (!userId) {
+                throw new Error(
+                  "No se pudo obtener el ID del usuario. Por favor, inicia sesión nuevamente."
+                );
               }
 
-              // Payload para la orden
-              const payload = {
+              // Armar items con sus personalizaciones
+              const items = cart.map((item) => {
+                // Calcular el precio total del ítem incluyendo personalizaciones
+                let itemPrice = Number(item.price);
+
+                // Sumar los precios de las personalizaciones si existen
+                if (
+                  item.selectedCustomizations?.length &&
+                  item.dishCustomizations?.length
+                ) {
+                  const customizationsTotal =
+                    item.selectedCustomizations.reduce((sum, customId) => {
+                      const customization = item.dishCustomizations?.find(
+                        (c) => c.id === customId
+                      );
+                      if (customization) {
+                        const price =
+                          typeof customization.additionalPrice === "number"
+                            ? customization.additionalPrice
+                            : parseFloat(customization.additionalPrice || "0");
+                        return sum + price;
+                      }
+                      return sum;
+                    }, 0);
+                  itemPrice += customizationsTotal;
+                }
+
+                // Crear el ítem con los campos que espera el frontend (OrderItemPayload)
+                const itemData: {
+                  menuId: number;
+                  quantity: number;
+                  price: number;
+                  notes: string;
+                  customizations: Array<{
+                    customizationId: number;
+                    isIncluded: boolean;
+                    notes: string;
+                  }>;
+                } = {
+                  menuId: item.id,
+                  quantity: item.quantity,
+                  price: itemPrice,
+                  notes: "",
+                  customizations: [],
+                };
+
+                // Agregar personalizaciones si existen
+                if (
+                  item.selectedCustomizations &&
+                  item.selectedCustomizations.length > 0
+                ) {
+                  itemData.customizations = item.selectedCustomizations.map(
+                    (customizationId) => ({
+                      customizationId,
+                      isIncluded: true,
+                      notes: "",
+                    })
+                  );
+                }
+
+                return itemData;
+              });
+
+              // Determinar método de pago
+              const paymentMethodId =
+                selected === "cash" ? undefined : Number(selected);
+
+              // Validar que tenemos la dirección si es delivery
+              if (!selectedAddress) {
+                throw new Error("Debes seleccionar una dirección de envío");
+              }
+
+              // Calcular el subtotal
+              const subtotal = items.reduce((sum, item) => {
+                return sum + item.price * item.quantity;
+              }, 0);
+
+              // Calcular impuestos (21% de IVA como ejemplo)
+              const taxRate = 0.21;
+              const taxAmount = subtotal * taxRate;
+              const totalAmount = subtotal + taxAmount;
+
+              // Crear el payload según el formato requerido
+              const payload: OrderPayload = {
                 customerId: userId,
-                date: new Date().toISOString(),
-                state: "received",
-                total_amount: cartSummary.total,
-                deliveryType: selectedAddress ? "delivery" : "in_place",
+                deliveryType: selectedAddress
+                  ? ("delivery" as const)
+                  : ("in_place" as const),
                 addressId: selectedAddress ? selectedAddress.id : null,
-                paymentType,
-                paymentMethodId,
-                items,
+                paymentType: (paymentMethodId ? "card" : "cash") as
+                  | "cash"
+                  | "card"
+                  | "mp",
+                paymentMethodId: paymentMethodId,
+                state: "received",
+                total_amount: totalAmount,
+                items: items.map((item) => ({
+                  menuId: item.menuId,
+                  quantity: item.quantity,
+                  price: item.price * (1 + taxRate), // Incluir impuesto en el precio unitario
+                  notes: item.notes || "",
+                  customizations: item.customizations || [],
+                })),
               };
-              // console.log("[CONFIRMAR] Payload final:", payload);
-              const { postOrder } = await import("@/actions/orders/post-order");
-              const result = await postOrder(payload);
-              // console.log("[CONFIRMAR] Respuesta postOrder:", result);
+              console.log("Enviando orden:", payload);
+              try {
+                const { postOrder } = await import(
+                  "@/actions/orders/post-order"
+                );
+                await postOrder(payload);
+                console.log("Orden creada exitosamente");
+              } catch (error) {
+                console.error("Error al crear la orden:", error);
+                throw error;
+              }
               // Limpiar carrito
               useCartStore.getState().clearCart();
               setShowSuccess(true);
               setTimeout(() => {
                 router.push("/cuenta/ordenes");
               }, 2000);
-            } catch (e) {
+            } catch (error) {
+              console.error("Error al crear la orden:", error);
+              // Mostrar mensaje de error al usuario si es necesario
               // console.error("[CONFIRMAR] Error al crear la orden:", e);
               alert("Error al crear la orden. Intenta nuevamente.");
             }
@@ -243,11 +332,31 @@ const handleSubmit = async (e: React.FormEvent) => {
       {showSuccess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center animate-fade-in">
-            <svg className="w-16 h-16 text-green-500 mb-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2l4-4" />
+            <svg
+              className="w-16 h-16 text-green-500 mb-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M9 12l2 2l4-4"
+              />
             </svg>
-            <h2 className="text-2xl font-bold text-green-600 mb-2">¡Orden creada con éxito!</h2>
+            <h2 className="text-2xl font-bold text-green-600 mb-2">
+              ¡Orden creada con éxito!
+            </h2>
             <p className="text-gray-600">Redirigiendo a tus pedidos...</p>
           </div>
         </div>
@@ -263,10 +372,14 @@ const handleSubmit = async (e: React.FormEvent) => {
             >
               <X size={24} />
             </button>
-            <h3 className="text-lg font-bold mb-4 text-gray-800">Agregar tarjeta</h3>
+            <h3 className="text-lg font-bold mb-4 text-gray-800">
+              Agregar tarjeta
+            </h3>
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Nombre en la tarjeta</label>
+                <label className="block text-sm text-gray-700 mb-1">
+                  Nombre en la tarjeta
+                </label>
                 <input
                   type="text"
                   className="w-full border rounded-lg px-3 py-2"
@@ -274,58 +387,84 @@ const handleSubmit = async (e: React.FormEvent) => {
                   onChange={(e) => setName(e.target.value)}
                   disabled={loading}
                 />
-                {errors.name && <p className="text-red-500 text-xs">{errors.name}</p>}
+                {errors.name && (
+                  <p className="text-red-500 text-xs">{errors.name}</p>
+                )}
               </div>
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Número de tarjeta</label>
+                <label className="block text-sm text-gray-700 mb-1">
+                  Número de tarjeta
+                </label>
                 <input
                   type="text"
                   maxLength={16}
                   className="w-full border rounded-lg px-3 py-2"
                   value={cardNumber}
-                  onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, ""))}
+                  onChange={(e) =>
+                    setCardNumber(e.target.value.replace(/\D/g, ""))
+                  }
                   disabled={loading}
                 />
-                {errors.cardNumber && <p className="text-red-500 text-xs">{errors.cardNumber}</p>}
+                {errors.cardNumber && (
+                  <p className="text-red-500 text-xs">{errors.cardNumber}</p>
+                )}
               </div>
               <div className="flex gap-2">
                 <div>
-                  <label className="block text-sm text-gray-700 mb-1">Mes</label>
+                  <label className="block text-sm text-gray-700 mb-1">
+                    Mes
+                  </label>
                   <select
-  className="w-full border rounded-lg px-3 py-2"
-  value={expMonth}
-  onChange={e => setExpMonth(e.target.value)}
-  disabled={loading}
->
-  <option value="">Mes</option>
-  {[...Array(12)].map((_, i) => {
-    const m = (i + 1).toString().padStart(2, "0");
-    return <option key={m} value={m}>{m}</option>;
-  })}
-</select>
-                  {errors.expMonth && <p className="text-red-500 text-xs">{errors.expMonth}</p>}
+                    className="w-full border rounded-lg px-3 py-2"
+                    value={expMonth}
+                    onChange={(e) => setExpMonth(e.target.value)}
+                    disabled={loading}
+                  >
+                    <option value="">Mes</option>
+                    {[...Array(12)].map((_, i) => {
+                      const m = (i + 1).toString().padStart(2, "0");
+                      return (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {errors.expMonth && (
+                    <p className="text-red-500 text-xs">{errors.expMonth}</p>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-700 mb-1">Año</label>
+                  <label className="block text-sm text-gray-700 mb-1">
+                    Año
+                  </label>
                   <select
-  className="w-full border rounded-lg px-3 py-2"
-  value={expYear}
-  onChange={e => setExpYear(e.target.value)}
-  disabled={loading}
->
-  <option value="">Año</option>
-  {(() => {
-  const currentYear = new Date().getFullYear();
-  return Array.from({ length: 15 }, (_, i) => {
-    const y = currentYear + i;
-    return <option key={y} value={y}>{y}</option>;
-  });
-})()}
-</select>
-                  {errors.expYear && <p className="text-red-500 text-xs">{errors.expYear}</p>}
+                    className="w-full border rounded-lg px-3 py-2"
+                    value={expYear}
+                    onChange={(e) => setExpYear(e.target.value)}
+                    disabled={loading}
+                  >
+                    <option value="">Año</option>
+                    {(() => {
+                      const currentYear = new Date().getFullYear();
+                      return Array.from({ length: 15 }, (_, i) => {
+                        const y = currentYear + i;
+                        return (
+                          <option key={y} value={y}>
+                            {y}
+                          </option>
+                        );
+                      });
+                    })()}
+                  </select>
+                  {errors.expYear && (
+                    <p className="text-red-500 text-xs">{errors.expYear}</p>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-700 mb-1">CVV</label>
+                  <label className="block text-sm text-gray-700 mb-1">
+                    CVV
+                  </label>
                   <input
                     type="text"
                     maxLength={4}
@@ -334,7 +473,9 @@ const handleSubmit = async (e: React.FormEvent) => {
                     onChange={(e) => setCvv(e.target.value.replace(/\D/g, ""))}
                     disabled={loading}
                   />
-                  {errors.cvv && <p className="text-red-500 text-xs">{errors.cvv}</p>}
+                  {errors.cvv && (
+                    <p className="text-red-500 text-xs">{errors.cvv}</p>
+                  )}
                 </div>
               </div>
               <button

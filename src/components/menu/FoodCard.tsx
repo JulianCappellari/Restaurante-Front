@@ -29,12 +29,7 @@ const parsePrice = (v: number | string): number => {
   return parseFloat(clean) || 0;
 };
 
-const formatARS = (n: number) =>
-  new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(n);
+
 
 const FoodCard: FC<FoodCardProps> = ({
   id,

@@ -8,12 +8,12 @@ export const postRegister = async (
   email: string,
   phone: string,
   password: string,
-  rol: UserRoles
+  role: UserRoles
 ): Promise<IUser | null> => {
   try {
     const response = await axios.post<IUser>(
       `${process.env.NEXT_PUBLIC_API_URL}/register`,
-      { firstName, lastName, email,phone, password, rol }
+      { firstName, lastName, email,phone, password, role }
     );
     console.log("Usuario registrado:", response.data);
     return response.data;

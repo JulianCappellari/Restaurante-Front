@@ -6,11 +6,13 @@ export interface IUser {
     email: string;
     phone: string;
     password: string;
-    rol: UserRoles;
+    role: UserRoles;
 }
 
 export enum UserRoles {
-    WAITER = 'Waiter',
     ADMIN = 'Administrator',
-    CUSTOMER = 'Customer'
+    WAITER = 'Waiter',
+    CUSTOMER = 'Customer',
+    RECEPTIONIST = 'Receptionist',
+    CHEF = 'Chef'
 }

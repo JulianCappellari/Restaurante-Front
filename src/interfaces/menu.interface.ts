@@ -4,7 +4,7 @@ export interface IDishCustomization {
   additionalPrice: number;
   isActive: boolean;
   isDefaultIncluded: boolean;
-  menuId?: number;
+  menuId: number;
   description?: string;
   isRemovable?: boolean;
   isRequired?: boolean;
