@@ -14,6 +14,7 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
+// Helpers de fecha
 const nowLocalForInput = () => {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -28,7 +29,7 @@ const fmt = (iso: string) =>
     minute: "2-digit",
   });
 
-// "YYYY-MM-DDTHH:mm" -> ISO con offset local
+// Convierte "YYYY-MM-DDTHH:mm" (local) -> ISO con offset local
 function toLocalOffsetISOString(local: string) {
   const [d, t] = local.split("T");
   const [Y, M, D] = d.split("-").map(Number);
@@ -49,12 +50,36 @@ function toLocalOffsetISOString(local: string) {
   return `${YYYY}-${MM}-${DD}T${HH}:${MI}:00${sign}${offH}:${offM}`;
 }
 
-function autoPickTableIds(res: AvailabilityResponse, people: number): number[] {
-  const suggestions = [...(res.suggestions ?? [])]
-    .map((s) => ({ ...s, over: Math.max(0, s.fits - people) }))
-    .sort((a, b) => (a.over === b.over ? a.tableIds.length - b.tableIds.length : a.over - b.over));
-  if (suggestions.length) return suggestions[0].tableIds;
-  if (res.tables?.length) return [res.tables[0].id];
+// Reglas de horario del restaurante
+const OPEN_LUNCH_START = 12; // 12:00
+const OPEN_LUNCH_END_EXCLUSIVE = 16; // hasta 15:59
+const OPEN_DINNER_START = 20; // 20:00
+const OPEN_DINNER_END_EXCLUSIVE = 24; // hasta 23:59
+
+function isWithinServiceHours(dateLocalString: string): boolean {
+  // dateLocalString viene como "YYYY-MM-DDTHH:mm"
+  const hour = Number(dateLocalString.slice(11, 13));
+  return (
+    (hour >= OPEN_LUNCH_START && hour < OPEN_LUNCH_END_EXCLUSIVE) ||
+    (hour >= OPEN_DINNER_START && hour < OPEN_DINNER_END_EXCLUSIVE)
+  );
+}
+function hoursMessage() {
+  return "Horarios disponibles: 12:00–15:59 (mediodía) y 20:00–23:59 (noche).";
+}
+
+// Extrae ids de mesas
+function extractTableIds(resp: any): number[] {
+  if (Array.isArray(resp?.tables) && resp.tables.length) {
+    const first = resp.tables[0];
+    if (typeof first === "number") return resp.tables as number[];
+    if (typeof first === "object" && first?.id) return (resp.tables as Array<{ id: number }>).map((t) => t.id);
+  }
+  if (resp?.breakdown) {
+    const fours = Array.isArray(resp.breakdown.fours) ? resp.breakdown.fours : [];
+    const twos = Array.isArray(resp.breakdown.twos) ? resp.breakdown.twos : [];
+    return [...fours, ...twos].filter((n: any) => typeof n === "number");
+  }
   return [];
 }
 
@@ -77,11 +102,22 @@ export default function AvailabilityForm() {
   const [isPending, startTransition] = useTransition();
 
   const people = watch("people");
+  const dateTimeLocal = watch("dateTime");
   const minDateTime = useMemo(nowLocalForInput, []);
+
+  const outOfHours = dateTimeLocal ? !isWithinServiceHours(dateTimeLocal) : false;
 
   const onSubmit = (v: FormValues) => {
     setErr(undefined);
     setRes(null);
+
+    // Bloquea si está fuera de horario
+    if (!isWithinServiceHours(v.dateTime)) {
+      setErr(hoursMessage());
+      setStatus("idle");
+      return;
+    }
+
     setStatus("checking");
 
     startTransition(async () => {
@@ -91,8 +127,8 @@ export default function AvailabilityForm() {
         setRes(data);
 
         if (data.available) {
-          const picked = autoPickTableIds(data, v.people);
-          set({ dateTime: iso, people: v.people, tableIds: picked });
+          const pickedIds = extractTableIds(data);
+          set({ dateTime: iso, people: v.people, tableIds: pickedIds });
           setStatus("available");
         } else {
           set({ dateTime: iso, people: v.people, tableIds: [] });
@@ -122,19 +158,24 @@ export default function AvailabilityForm() {
             id="dateTime"
             type="datetime-local"
             min={minDateTime}
-            disabled={isPending}
+            step={60} // pasos de 1 minuto
             {...register("dateTime")}
+            disabled={isPending}
             className={[
               "w-full rounded-xl border px-3 py-2 bg-white focus-visible:focus-ring",
-              errors.dateTime ? "border-red-500" : "border-border",
+              errors.dateTime || outOfHours ? "border-red-500" : "border-border",
             ].join(" ")}
+            aria-invalid={errors.dateTime ? "true" : "false"}
           />
+          {outOfHours && (
+            <p className="mt-1 text-xs text-red-600">{hoursMessage()}</p>
+          )}
           {errors.dateTime && (
             <p className="mt-1 text-xs text-red-600">{errors.dateTime.message}</p>
           )}
         </div>
 
-        {/* Personas: solo números */}
+        {/* Personas */}
         <div>
           <label htmlFor="people" className="mb-1 block text-sm font-medium">
             Personas
@@ -161,9 +202,7 @@ export default function AvailabilityForm() {
             ].join(" ")}
             placeholder="Ej: 2"
           />
-          {errors.people && (
-            <p className="mt-1 text-xs text-red-600">{errors.people.message}</p>
-          )}
+          {errors.people && <p className="mt-1 text-xs text-red-600">{errors.people.message}</p>}
           <p className="mt-1 text-xs text-muted-foreground">Máximo 20 personas.</p>
         </div>
 
@@ -171,9 +210,10 @@ export default function AvailabilityForm() {
         <div className="flex items-center">
           <button
             type="submit"
-            disabled={isPending}
+            disabled={isPending || outOfHours}
             aria-busy={isPending}
-            className="btn-primary w-full justify-center"
+            className="btn-primary w-full justify-center disabled:opacity-60"
+            title={outOfHours ? hoursMessage() : undefined}
           >
             {isPending ? "Consultando…" : "Ver disponibilidad"}
           </button>
@@ -182,25 +222,20 @@ export default function AvailabilityForm() {
 
       {/* Estado */}
       {err && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {err}
-        </div>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{err}</div>
       )}
 
       {res?.available && (
         <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
           Disponibilidad confirmada para <b>{people}</b> persona(s) el{" "}
-          <b>{fmt(toLocalOffsetISOString(watch("dateTime")))}</b>. Se asignó la mejor combinación
-          de mesas automáticamente.
+          <b>{fmt(toLocalOffsetISOString(dateTimeLocal))}</b>. Se asignó la mejor combinación de mesas automáticamente.
         </div>
       )}
 
       {res && !res.available && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
           Sin disponibilidad para el horario seleccionado.
-          {"message" in res && res.message ? (
-            <span className="block text-xs">{res.message}</span>
-          ) : null}
+          {"message" in res && res.message ? <span className="block text-xs">{res.message}</span> : null}
           <div className="mt-3">
             <button
               type="button"

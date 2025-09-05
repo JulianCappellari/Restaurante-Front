@@ -11,7 +11,8 @@ type InitialAuth = {
 };
 
 export default async function ReservationPage() {
-  const token = cookies().get("token")?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
   let initialAuth: InitialAuth = { isLoggedIn: false, userId: null, email: null };
 
   if (token) {
