@@ -3,8 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   compiler: {
     styledComponents: true
-},
-productionSourceMaps: true,
+  },
+  productionBrowserSourceMaps: true,
 };
 
 export default nextConfig;

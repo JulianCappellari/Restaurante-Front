@@ -274,7 +274,7 @@ export default function BookingConfirm({ initialAuth }: { initialAuth: InitialAu
                 >
                   Hacer otra reserva
                 </button>
-                <Link href="/mis-reservas" className="btn-secondary text-sm text-center">
+                <Link href="/cuenta/reservas" className="btn-secondary text-sm text-center">
                   Ver mis reservas
                 </Link>
               </div>

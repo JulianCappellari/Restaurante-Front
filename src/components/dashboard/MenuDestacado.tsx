@@ -1,109 +1,88 @@
-"use client"
+"use client";
 
-import Image from "next/image"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
-import { cn } from "@/lib/utils"
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { ArrowRight } from "lucide-react";
 
 type MenuItemProps = {
-  title: string
-  description: string
-  price: number
-  image: string
-  currency?: string
-  featured?: boolean
-  category?: string
-  className?: string
-}
+  title: string;
+  description: string;
+  price: number;
+  image: string;
+  featured?: boolean;
+  category?: string;
+  className?: string;
+};
+
+const formatARS = (value: number) =>
+  new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  }).format(value);
 
 export default function MenuDestacado({
   title,
   description,
   price,
   image = "/Fondo-restaurante.jpg",
-  currency = "ARS",
   featured = false,
   category,
-  className
+  className,
 }: MenuItemProps) {
-  const [isHovered, setIsHovered] = useState(false)
-  const router = useRouter()
+  const router = useRouter();
 
   const handleClick = () => {
-    // Navigate to menu section or item detail
-    if (category) {
-      router.push(`/menu#${category.toLowerCase()}`)
-    } else {
-      router.push(`/menu`)
-    }
-  }
+    router.push(category ? `/menu#${category.toLowerCase()}` : "/menu");
+  };
 
   return (
-    <div 
+    <button
       className={cn(
-        "relative w-full max-w-xs h-[400px] group perspective-1000 cursor-pointer",
+        "group w-full max-w-sm overflow-hidden rounded-lg border bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg",
         className
       )}
       onClick={handleClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && handleClick()}
+      type="button"
     >
-      {/* 3D effect background card */}
-      <div 
-        className={cn(
-          "absolute inset-0 bg-primario-300 rounded-xl shadow-2xl transition-all duration-500",
-          isHovered ? "rotate-6" : "rotate-3"
-        )}
-        aria-hidden="true"
-      />
-      
-      {/* Main card */}
-      <div className="relative h-full bg-white rounded-xl shadow-lg overflow-hidden transition-all duration-300 group-hover:-translate-x-1 group-hover:-translate-y-1">
-        {/* Featured badge */}
+      <div className="relative aspect-[4/3] overflow-hidden">
+        <Image
+          src={image}
+          alt={title}
+          fill
+          className="object-cover transition duration-500 group-hover:scale-105"
+          sizes="(max-width: 768px) 100vw, 33vw"
+        />
         {featured && (
-          <div className="absolute top-3 right-3 bg-amber-400 text-amber-900 text-xs font-bold px-3 py-1 rounded-full z-10">
+          <span className="absolute left-3 top-3 rounded-full bg-amber-400 px-3 py-1 text-xs font-bold text-amber-950 shadow">
             Destacado
-          </div>
+          </span>
         )}
-        
-        {/* Image */}
-        <div className="relative h-48 w-full overflow-hidden">
-          <Image
-            src={image}
-            alt={title}
-            fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            priority
-          />
-        </div>
+      </div>
 
-        {/* Content */}
-        <div className="p-5 flex flex-col h-[calc(100%-12rem)]">
-          {category && (
-            <span className="text-xs font-medium text-primario-600 mb-1">
-              {category}
-            </span>
-          )}
-          <h3 className="text-xl font-bold text-gray-800 mb-2 line-clamp-2">
-            {title}
-          </h3>
-          <p className="text-gray-600 text-sm mb-4 line-clamp-2 flex-grow">
-            {description}
-          </p>
-          <div className="flex items-center justify-between mt-auto">
-            <span className="text-lg font-bold text-primario-600">
-              $ {price.toLocaleString('es-AR')}
-            </span>
-            <span className="text-sm text-gray-500 group-hover:text-primario-600 transition-colors">
-              Ver más →
-            </span>
-          </div>
+      <div className="p-5">
+        {category && (
+          <span className="text-xs font-semibold uppercase tracking-[0.16em] text-primario-700">
+            {category}
+          </span>
+        )}
+        <h3 className="mt-2 line-clamp-2 min-h-[3.5rem] text-xl font-bold text-gray-950">
+          {title}
+        </h3>
+        <p className="mt-2 line-clamp-2 min-h-[2.5rem] text-sm leading-5 text-gray-600">
+          {description}
+        </p>
+        <div className="mt-5 flex items-center justify-between border-t pt-4">
+          <span className="text-lg font-bold text-primario-700">
+            {formatARS(price)}
+          </span>
+          <span className="inline-flex items-center gap-1 text-sm font-semibold text-gray-700 group-hover:text-primario-700">
+            Ver mas
+            <ArrowRight className="h-4 w-4" />
+          </span>
         </div>
       </div>
-    </div>
-  )
+    </button>
+  );
 }

@@ -1,35 +1,25 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { CreditCard, PlusCircle, Star, Trash2, CheckCircle } from "lucide-react";
-// Simula tus acciones reales
-// import { getAllPaymentMethods, addPaymentMethod, deletePaymentMethod, setPreferredPaymentMethod } from "@/actions/payment-methods";
+import { CheckCircle, CreditCard, Loader2, PlusCircle, Star, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components";
 import { getPaymentMethods } from "@/actions/payment-methods/get-payment-methods";
 import { postPaymentMethod } from "@/actions/payment-methods/post-payment.methods";
 import { getUserIdFromToken } from "@/utils/getUserIdFromToken";
 import { deletePymentMethod } from "@/actions/payment-methods/delete-payment.method";
 import ModalConfirmDelete from "@/components/ui/ModalConfirmDelete";
-
-
-
-
 import ToastAlert from "@/components/ui/ToastAlert";
+import { IPaymentMethod } from "@/interfaces";
+
+type Errors = {
+  name?: string;
+  cardNumber?: string;
+  expiration?: string;
+  cvv?: string;
+};
 
 export default function PaymentMethodsPage() {
-  // Recarga métodos de pago desde backend
-  const reloadPaymentMethods = async () => {
-    setLoading(true);
-    try {
-      const data = await getPaymentMethods();
-      setPaymentMethods(data);
-    } catch (err) {
-      // Podés mostrar error si querés
-    } finally {
-      setLoading(false);
-    }
-  };
-  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<IPaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
@@ -37,61 +27,70 @@ export default function PaymentMethodsPage() {
   const [newExpMonth, setNewExpMonth] = useState("");
   const [newExpYear, setNewExpYear] = useState("");
   const [newCvv, setNewCvv] = useState("");
-  const [errors, setErrors] = useState<{name?: string; cardNumber?: string; cvv?: string}>({});
+  const [errors, setErrors] = useState<Errors>({});
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
-  // Simula fetch inicial
+  const reloadPaymentMethods = async () => {
+    setLoading(true);
+    try {
+      const data = await getPaymentMethods();
+      setPaymentMethods(data);
+    } catch {
+      setPaymentMethods([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    
-    getPaymentMethods()
-      .then((data) => setPaymentMethods(data))
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    reloadPaymentMethods();
   }, []);
 
-  // Agregar método de pago
-  const handleAdd = async () => {
-    console.log("[handleAdd] Inicio", { newName, newCardNumber, newExpMonth, newExpYear, newCvv });
-    const newErrors: {name?: string; cardNumber?: string; cvv?: string} = {};
-    if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/.test(newName)) {
-      newErrors.name = "El nombre solo puede contener letras y espacios.";
+  const validate = () => {
+    const nextErrors: Errors = {};
+
+    if (!/^[A-Za-z\s]+$/.test(newName.trim())) {
+      nextErrors.name = "El nombre solo puede contener letras y espacios.";
     }
     if (!/^\d{16}$/.test(newCardNumber)) {
-      newErrors.cardNumber = "El número de tarjeta debe tener 16 dígitos numéricos.";
+      nextErrors.cardNumber = "La tarjeta debe tener 16 digitos.";
+    }
+    if (!newExpMonth || !newExpYear) {
+      nextErrors.expiration = "La fecha de vencimiento es obligatoria.";
     }
     if (!/^\d{3,4}$/.test(newCvv)) {
-      newErrors.cvv = "El CVV debe tener 3 o 4 dígitos numéricos.";
-    }
-    if (!newName) newErrors.name = "El nombre es obligatorio.";
-    if (!newCardNumber) newErrors.cardNumber = "El número de tarjeta es obligatorio.";
-    if (!newExpMonth || !newExpYear) newErrors.cardNumber = "La fecha de vencimiento es obligatoria.";
-    if (!newCvv) newErrors.cvv = "El CVV es obligatorio.";
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) {
-      console.log("[handleAdd] Errores de validación", newErrors);
-      return;
+      nextErrors.cvv = "El CVV debe tener 3 o 4 digitos.";
     }
 
-    const expirationDate = `${newExpMonth}/${newExpYear.slice(-2)}`;
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleAdd = async () => {
+    if (!validate()) return;
 
     const userId = getUserIdFromToken();
     if (!userId) {
-      alert("No se pudo identificar el usuario. Por favor, inicia sesión nuevamente.");
-      console.log("[handleAdd] No se pudo obtener userId");
+      alert("No se pudo identificar el usuario. Inicia sesion nuevamente.");
       return;
     }
+
+    setAdding(true);
     try {
-      const payload = {
-        name: newName,
-        cardHolderName: newName,
+      const expirationDate = `${newExpMonth}/${newExpYear.slice(-2)}`;
+      await postPaymentMethod({
+        name: "Tarjeta",
+        type: "card",
+        cardHolderName: newName.trim(),
         cardNumber: newCardNumber,
         last4: newCardNumber.slice(-4),
         expirationDate,
         cvv: newCvv,
-        status: "true",
+        status: true,
         userId,
-      };
-      console.log("[handleAdd] Enviando payload a postPaymentMethod", payload);
-      await postPaymentMethod(payload);
+      });
       await reloadPaymentMethods();
       setNewName("");
       setNewCardNumber("");
@@ -100,17 +99,12 @@ export default function PaymentMethodsPage() {
       setNewCvv("");
       setShowSuccess(true);
     } catch (error) {
-      console.error("[handleAdd] Error al agregar la tarjeta", error);
+      console.error("Error al agregar la tarjeta", error);
       alert("Error al agregar la tarjeta. Intenta nuevamente.");
     } finally {
       setAdding(false);
-      console.log("[handleAdd] setAdding(false)");
     }
   };
-
-  // Eliminar método de pago
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const handleDelete = (id: number) => {
     setDeleteId(id);
@@ -122,222 +116,244 @@ export default function PaymentMethodsPage() {
       try {
         await deletePymentMethod(deleteId);
         await reloadPaymentMethods();
-      } catch (err) {
-        alert("Error al eliminar el método de pago.");
+      } catch {
+        alert("Error al eliminar el metodo de pago.");
       }
     }
     setDeleteModalOpen(false);
     setDeleteId(null);
   };
 
-
-
-  // Seleccionar como preferido
   const handleSetPreferred = (id: number) => {
-    setPaymentMethods((prev: any[]) =>
-      prev.map((m: any) => ({
-        ...m,
-        preferred: m.id === id,
+    setPaymentMethods((prev) =>
+      prev.map((method) => ({
+        ...method,
+        isDefault: method.id === id,
       }))
     );
   };
-
-
-  const [showSuccess, setShowSuccess] = useState(false);
 
   return (
     <>
       <ModalConfirmDelete
         open={deleteModalOpen}
-        onClose={() => { setDeleteModalOpen(false); setDeleteId(null); }}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setDeleteId(null);
+        }}
         onConfirm={handleConfirmDelete}
-        title="¿Eliminar método de pago?"
-        description="Esta acción no se puede deshacer. ¿Estás seguro de que quieres eliminar este método de pago?"
+        title="Eliminar metodo de pago"
+        description="Esta accion no se puede deshacer. Queres eliminar este metodo de pago?"
       />
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 p-4 md:p-8">
-        <div className="max-w-3xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Métodos de Pago</h1>
-            <p className="text-gray-500 mt-1">Administra tus tarjetas y cuentas guardadas</p>
-          </div>
-        </div>
 
-        {/* Agregar método */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <PlusCircle className="h-5 w-5 text-blue-500" />
-            Agregar nuevo método de pago
-          </h2>
-           <form
-             className="flex flex-col gap-4"
-             onSubmit={e => {
-               e.preventDefault();
-               handleAdd();
-             }}
-             autoComplete="off"
-           >
-             {/* Primera fila */}
-            <div className="flex flex-col md:flex-row gap-4 w-full">
-              <div className="w-full md:w-1/2 flex flex-col">
-              <input
-                type="text"
-                placeholder="Nombre en la tarjeta"
-                className={`border rounded-lg px-4 py-2 w-full ${errors.name ? 'border-red-500' : ''}`}
-                value={newName}
-                onChange={e => setNewName(e.target.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ ]/g, ""))}
-                disabled={adding}
-                required
-                maxLength={64}
-                autoComplete="cc-name"
-              />
-              {errors.name && <span className="text-red-500 text-xs mt-1">{errors.name}</span>}
-            </div>
-              <div className="w-full md:w-1/2 flex flex-col">
-                <input
-                  type="text"
-                  placeholder="Número de tarjeta"
-                  className={`border rounded-lg px-4 py-2 w-full ${errors.cardNumber ? 'border-red-500' : ''}`}
-                  value={newCardNumber}
-                  onChange={e => setNewCardNumber(e.target.value.replace(/[^0-9]/g, '').slice(0, 16))}
-                  disabled={adding}
-                  required
-                  maxLength={16}
-                  inputMode="numeric"
-                  pattern="^\d{16}$"
-                  title="16 dígitos"
-                  autoComplete="cc-number"
-                />
-                {errors.cardNumber && <span className="text-red-500 text-xs mt-1">{errors.cardNumber}</span>}
-              </div>
-            </div>
-            {/* Segunda fila */}
-            <div className="flex flex-col md:flex-row gap-4 w-full">
-              {/* Select personalizado para mes */}
-              <select
-                className="border rounded-lg px-4 py-2 w-full md:w-1/6 bg-white"
-                value={newExpMonth}
-                onChange={e => setNewExpMonth(e.target.value)}
-                disabled={adding}
-                required
-              >
-                <option value="" disabled>Mes</option>
-                {[...Array(12)].map((_, i) => {
-                  const mes = (i + 1).toString().padStart(2, '0');
-                  return <option key={mes} value={mes}>{mes}</option>;
-                })}
-              </select>
-              {/* Select personalizado para año */}
-              <select
-                className="border rounded-lg px-4 py-2 w-full md:w-1/6 bg-white"
-                value={newExpYear}
-                onChange={e => setNewExpYear(e.target.value)}
-                disabled={adding}
-                required
-              >
-                <option value="" disabled>Año</option>
-                {Array.from({length: 15}, (_, i) => {
-                  const year = (new Date().getFullYear() + i).toString();
-                  return <option key={year} value={year}>{year}</option>;
-                })}
-              </select>
-              <div className="w-full md:w-1/6 flex flex-col">
-                <input
-                  type="text"
-                  placeholder="CVV"
-                  className={`border rounded-lg px-4 py-2 w-full ${errors.cvv ? 'border-red-500' : ''}`}
-                  value={newCvv}
-                  onChange={e => setNewCvv(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
-                  disabled={adding}
-                  required
-                  maxLength={4}
-                  inputMode="numeric"
-                  pattern="^\d{3,4}$"
-                  title="3 o 4 dígitos"
-                  autoComplete="cc-csc"
-                />
-                {errors.cvv && <span className="text-red-500 text-xs mt-1">{errors.cvv}</span>}
-              </div>
-            </div>
-             <div className="flex items-center gap-3 mt-2">
-               <button
-                 type="submit"
-                 className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg inline-flex items-center gap-2 transition-all shadow-md disabled:opacity-50"
-                 disabled={adding}
-               >
-                 <PlusCircle className="h-5 w-5" />
-                 {adding ? "Agregando..." : "Agregar"}
-               </button>
-               <div className="relative">
-                 <ToastAlert open={showSuccess} message="¡Tarjeta agregada correctamente!" type="success" onClose={() => setShowSuccess(false)} />
-               </div>
-             </div>
-          </form>
-        </div>
+      <div className="customer-shell py-6 sm:py-10">
+        <div className="mx-auto max-w-4xl">
+          <header>
+            <h1 data-split className="mt-2 text-4xl leading-tight text-cliente-ink sm:text-5xl">Metodos de pago</h1>
+            <p className="mt-2 text-gray-600">
+              Guarda tarjetas para acelerar tus proximos pedidos.
+            </p>
+          </header>
 
-        {/* Lista de métodos */}
-        {loading ? (
-          <div className="grid gap-4">
-            {[...Array(2)].map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full rounded-xl bg-gray-200" />
-            ))}
-          </div>
-        ) : paymentMethods.length === 0 ? (
-          <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-200">
-            <CreditCard className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-xl font-medium text-gray-700">No tienes métodos de pago guardados</h3>
-            <p className="text-gray-500 mt-2 mb-4">Agrega una tarjeta o cuenta para comenzar</p>
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {paymentMethods.map((method) => (
-              <div
-                key={method.id}
-                className={`bg-white rounded-xl p-5 flex items-center justify-between shadow-sm border border-gray-200 transition-all ${
-                  method.preferred ? "border-blue-500 ring-2 ring-blue-200" : ""
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <CreditCard className="h-8 w-8 text-blue-500" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-800">{method.type}</span>
-                      {method.preferred && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
-                          <Star className="h-3 w-3" /> Preferido
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-gray-500 text-sm">•••• {method.last4}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {!method.preferred && (
-                    <button
-                      onClick={() => handleSetPreferred(method.id)}
-                      className="text-blue-600 hover:text-blue-800 transition p-2 rounded-full hover:bg-blue-50"
-                      aria-label="Seleccionar como preferido"
-                      title="Seleccionar como preferido"
-                    >
-                      <CheckCircle className="h-5 w-5" />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleDelete(method.id)}
-                    className="text-red-600 hover:text-red-800 transition p-2 rounded-full hover:bg-red-50"
-                    aria-label="Eliminar método de pago"
-                    title="Eliminar"
+          <section className="mt-8 rounded-2xl border border-cliente-line bg-white p-5 sm:p-6">
+            <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+              <PlusCircle className="h-5 w-5 text-primario-700" />
+              Agregar tarjeta
+            </h2>
+            <form
+              className="mt-5 grid gap-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                handleAdd();
+              }}
+              autoComplete="off"
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Nombre en la tarjeta" error={errors.name}>
+                  <input
+                    type="text"
+                    className="w-full rounded-lg border px-4 py-2.5"
+                    value={newName}
+                    onChange={(event) => setNewName(event.target.value.replace(/[^A-Za-z\s]/g, ""))}
+                    disabled={adding}
+                    autoComplete="cc-name"
+                  />
+                </Field>
+                <Field label="Numero de tarjeta" error={errors.cardNumber}>
+                  <input
+                    type="text"
+                    className="w-full rounded-lg border px-4 py-2.5"
+                    value={newCardNumber}
+                    onChange={(event) =>
+                      setNewCardNumber(event.target.value.replace(/\D/g, "").slice(0, 16))
+                    }
+                    disabled={adding}
+                    inputMode="numeric"
+                    autoComplete="cc-number"
+                  />
+                </Field>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
+                <Field label="Mes" error={errors.expiration}>
+                  <select
+                    className="w-full rounded-lg border px-4 py-2.5"
+                    value={newExpMonth}
+                    onChange={(event) => setNewExpMonth(event.target.value)}
+                    disabled={adding}
                   >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
-                </div>
+                    <option value="">Mes</option>
+                    {Array.from({ length: 12 }, (_, index) => {
+                      const month = String(index + 1).padStart(2, "0");
+                      return (
+                        <option key={month} value={month}>
+                          {month}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </Field>
+                <Field label="Ano">
+                  <select
+                    className="w-full rounded-lg border px-4 py-2.5"
+                    value={newExpYear}
+                    onChange={(event) => setNewExpYear(event.target.value)}
+                    disabled={adding}
+                  >
+                    <option value="">Ano</option>
+                    {Array.from({ length: 15 }, (_, index) => {
+                      const year = String(new Date().getFullYear() + index);
+                      return (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </Field>
+                <Field label="CVV" error={errors.cvv}>
+                  <input
+                    type="text"
+                    className="w-full rounded-lg border px-4 py-2.5"
+                    value={newCvv}
+                    onChange={(event) => setNewCvv(event.target.value.replace(/\D/g, "").slice(0, 4))}
+                    disabled={adding}
+                    inputMode="numeric"
+                    autoComplete="cc-csc"
+                  />
+                </Field>
+                <button
+                  type="submit"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primario-600 px-5 font-semibold text-white transition hover:bg-primario-700 disabled:opacity-60"
+                  disabled={adding}
+                >
+                  {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
+                  {adding ? "Agregando" : "Agregar"}
+                </button>
               </div>
-            ))}
-          </div>
-        )}
+            </form>
+            <ToastAlert
+              open={showSuccess}
+              message="Tarjeta agregada correctamente."
+              type="success"
+              onClose={() => setShowSuccess(false)}
+            />
+          </section>
+
+          <section className="mt-8">
+            {loading ? (
+              <div className="grid gap-4">
+                {Array.from({ length: 2 }).map((_, index) => (
+                  <Skeleton key={index} className="h-24 w-full rounded-lg bg-gray-200" />
+                ))}
+              </div>
+            ) : paymentMethods.length === 0 ? (
+              <div className="rounded-lg border bg-white p-10 text-center shadow-sm">
+                <CreditCard className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-4 text-2xl font-bold text-gray-950">
+                  No tenes metodos de pago guardados
+                </h3>
+                <p className="mt-2 text-gray-600">
+                  Agrega una tarjeta para usarla en el checkout.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {paymentMethods.map((method) => (
+                  <article
+                    key={method.id}
+                    className={`flex flex-col gap-4 rounded-2xl border border-cliente-line bg-white p-5 transition sm:flex-row sm:items-center sm:justify-between ${
+                      method.isDefault ? "border-primario-400 ring-2 ring-primario-100" : "border-gray-200"
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="grid h-12 w-12 place-items-center rounded-lg bg-primario-50 text-primario-700">
+                        <CreditCard className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-bold text-gray-950">
+                            {method.cardHolderName || method.name || "Tarjeta"}
+                          </span>
+                          {method.isDefault && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primario-50 px-2 py-0.5 text-xs font-semibold text-primario-700">
+                              <Star className="h-3 w-3" />
+                              Preferida
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-sm text-gray-500">
+                          Terminada en {method.last4 || "----"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      {!method.isDefault && (
+                        <button
+                          onClick={() => handleSetPreferred(method.id)}
+                          className="rounded-lg p-2 text-gray-600 transition hover:bg-primario-50 hover:text-primario-700"
+                          aria-label="Seleccionar como preferido"
+                          title="Seleccionar como preferido"
+                          type="button"
+                        >
+                          <CheckCircle className="h-5 w-5" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(method.id)}
+                        className="rounded-lg p-2 text-red-600 transition hover:bg-red-50 hover:text-red-700"
+                        aria-label="Eliminar metodo de pago"
+                        title="Eliminar"
+                        type="button"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
-    </div>
     </>
+  );
+}
+
+function Field({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-medium text-gray-700">{label}</span>
+      {children}
+      {error && <span className="mt-1 block text-xs text-red-600">{error}</span>}
+    </label>
   );
 }

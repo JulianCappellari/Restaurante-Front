@@ -3,10 +3,15 @@
 import { cookies } from 'next/headers';
 
 type BookingRequest = {
-  userId: number;
+  userId?: number | null;
   dateTime?: string;
   numberPeople: number;
   tableIds: number[];
+  customer?: {
+    name: string;
+    email?: string;
+    phone?: string;
+  };
 };
 
 export async function createBooking(payload: BookingRequest) {
@@ -25,6 +30,7 @@ export async function createBooking(payload: BookingRequest) {
   // Prepare the booking data with proper table associations
   const requestPayload = {
     userId: payload.userId,
+    customer: payload.customer,
     dateTime: payload.dateTime, // Use dateTime if provided, otherwise fallback to date
     numberPeople: payload.numberPeople,
     // Send tableIds as a direct array of numbers

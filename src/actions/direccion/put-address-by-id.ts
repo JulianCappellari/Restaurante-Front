@@ -21,14 +21,16 @@ export const putAddressById = async (
       headers: {
         Authorization: `Bearer ${token}`,
       },
-      withCredentials: true, // por si el backend necesita enviar/recibir cookies
+      withCredentials: true,
     });
-    console.log("Direccion actualizada:", response.data);
     return response.data;
   } catch (error) {
-    console.error(
-      "Error al actualizar la direccion:",
-      error.response?.data || error.message
-    );
+    const message = axios.isAxiosError(error)
+      ? error.response?.data || error.message
+      : error instanceof Error
+      ? error.message
+      : error;
+    console.error("Error al actualizar la direccion:", message);
+    throw new Error("No se pudo actualizar la direccion.");
   }
 };

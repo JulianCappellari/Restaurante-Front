@@ -1,32 +1,41 @@
-import { IAddress } from "@/interfaces";
+"use client";
+
+import type { IAddress } from "@/interfaces";
 import axios from "axios";
 import { useEffect, useState } from "react";
 
-export const useUserAddress = (userId: number | null) => {
-  const [addresses, setAddresses] = useState<IAddress[]>([]);
-  const [loading, setLoading] = useState(true);
+type AddressResult = { userId: number; attempt: number; addresses: IAddress[]; error: boolean };
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL2;
+export function useUserAddress(userId: number | null) {
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState<AddressResult | null>(null);
 
   useEffect(() => {
-    const fetchAddresses = async () => {
-      try {
-        if (!userId) return;
+    const api = process.env.NEXT_PUBLIC_API_URL2;
+    if (!userId || !api) return;
 
-        // console.log(`${API_URL}/addresses/user/${userId}`);
-        // console.log(userId);
+    const controller = new AbortController();
+    axios.get<IAddress[]>(`${api}/addresses/user/${userId}`, { signal: controller.signal })
+      .then(({ data }) => {
+        if (!controller.signal.aborted) {
+          setResult({ userId, attempt, addresses: Array.isArray(data) ? data : [], error: false });
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setResult({ userId, attempt, addresses: [], error: true });
+        }
+      });
 
-        const res = await axios.get(`${API_URL}/addresses/user/${userId}`);
-        setAddresses(res.data);
-      } catch (err) {
-        console.error("Error fetching addresses", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    return () => controller.abort();
+  }, [userId, attempt]);
 
-    fetchAddresses();
-  }, [userId, API_URL]);
-
-  return { addresses, loading };
-};
+  const apiConfigured = Boolean(process.env.NEXT_PUBLIC_API_URL2);
+  const current = result?.userId === userId && result.attempt === attempt ? result : null;
+  return {
+    addresses: current?.addresses ?? [],
+    loading: Boolean(userId && apiConfigured && !current),
+    error: Boolean(userId && (!apiConfigured || current?.error)),
+    retry: () => setAttempt((count) => count + 1),
+  };
+}

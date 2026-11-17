@@ -12,7 +12,7 @@ interface CheckoutState {
 }
 
 
-export const useCheckoutStore = create<CheckoutState>(
+export const useCheckoutStore = create<CheckoutState>()(
     persist(
         (set) => ({
             selectedAddress: null,

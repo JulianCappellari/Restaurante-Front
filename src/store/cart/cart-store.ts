@@ -1,37 +1,61 @@
 import { IMenuCart } from "@/interfaces";
+import { findPromotion, normalizeCouponCode, validatePromotion } from "@/lib/promotions";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+const parseCurrency = (value: number | string | undefined | null): number => {
+  if (typeof value === "number") return value;
+  if (!value) return 0;
+
+  const clean = value.replace(/[^\d.,-]/g, "");
+  const hasComma = clean.includes(",");
+  const hasDot = clean.includes(".");
+
+  if (hasComma && hasDot) {
+    return Number.parseFloat(clean.replace(/\./g, "").replace(",", ".")) || 0;
+  }
+
+  if (hasComma) return Number.parseFloat(clean.replace(",", ".")) || 0;
+  return Number.parseFloat(clean) || 0;
+};
+
+const normalizedCustomizations = (product: IMenuCart) =>
+  [...(product.selectedCustomizations || [])].sort((a, b) => a - b);
+
+const hasSameCustomizations = (a: IMenuCart, b: IMenuCart) => {
+  const first = normalizedCustomizations(a);
+  const second = normalizedCustomizations(b);
+
+  return first.length === second.length && first.every((id, index) => id === second[index]);
+};
+
 interface CartState {
   cart: IMenuCart[];
-
-  // Getters
+  couponCode: string | null;
   getTotalItems: () => number;
-
+  getCartItems: () => IMenuCart[];
   getCartSummary: () => {
     subTotal: number;
+    discount: number;
     taxes: number;
     total: number;
     totalItems: number;
+    couponCode: string | null;
+    discountLabel: string | null;
   };
-
-  // Methods to modify the cart
   addMenuToCart: (product: IMenuCart) => void;
   updateMenuQuantity: (product: IMenuCart, quantity: number) => void;
   removeMenuFromCart: (product: IMenuCart) => void;
-
+  applyCoupon: (code: string) => { ok: boolean; message: string };
+  clearCoupon: () => void;
   clearCart: () => void;
 }
 
-// Store with Zustand
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
-      // The `get` function allows access to the current Zustand state
-
       cart: [],
-
-      // Getters
+      couponCode: null,
 
       getTotalItems: () => {
         const { cart } = get();
@@ -40,139 +64,117 @@ export const useCartStore = create<CartState>()(
 
       getCartItems: () => {
         const { cart } = get();
-        // Ensure we include selectedCustomizations in the returned items
-        return cart.map(item => ({
+        return cart.map((item) => ({
           ...item,
-          selectedCustomizations: item.selectedCustomizations || []
+          selectedCustomizations: item.selectedCustomizations || [],
         }));
       },
 
       getCartSummary: () => {
-        const { cart } = get();
+        const { cart, couponCode } = get();
 
         const subTotal = cart.reduce((sum, product) => {
-          // Base price of the product
-          let itemTotal = product.quantity * product.price;
-          
-          // Add customizations if they exist
-          if (product.selectedCustomizations?.length) {
-            const customizationsTotal = product.selectedCustomizations.reduce((customSum, customId) => {
-              const customization = product.dishCustomizations?.find(c => c.id === customId);
-              if (customization) {
-                const price = typeof customization.additionalPrice === 'number' 
-                  ? customization.additionalPrice 
-                  : parseFloat(customization.additionalPrice || '0');
-                return customSum + (product.quantity * price);
-              }
-              return customSum;
-            }, 0);
-            
-            itemTotal += customizationsTotal;
-          }
-          
-          return sum + itemTotal;
+          const basePrice = parseCurrency(product.price);
+          const extras = (product.selectedCustomizations || []).reduce((customSum, customId) => {
+            const customization = product.dishCustomizations?.find((c) => c.id === customId);
+            return customSum + parseCurrency(customization?.additionalPrice);
+          }, 0);
+
+          return sum + (basePrice + extras) * product.quantity;
         }, 0);
-        
-        const taxes = subTotal * 0.21; // Assuming a 21% tax rate
-        const total = subTotal + taxes;
+
+        const promotion = findPromotion(couponCode);
+        const validPromotion =
+          promotion && (!promotion.minSubtotal || subTotal >= promotion.minSubtotal)
+            ? promotion
+            : null;
+        const discount = validPromotion
+          ? (subTotal * validPromotion.discountPercent) / 100
+          : 0;
+        const taxableAmount = Math.max(0, subTotal - discount);
+        const taxes = taxableAmount * 0.21;
+        const total = taxableAmount + taxes;
         const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
         return {
           subTotal,
+          discount,
           taxes,
           total,
           totalItems,
+          couponCode: validPromotion?.code || null,
+          discountLabel: validPromotion?.label || null,
         };
       },
 
-      // Methods to modify the cart
-
       addMenuToCart: (product: IMenuCart) => {
         const { cart } = get();
-
-        // Check if the exact same product with the same customizations already exists in the cart
-        const existingItemIndex = cart.findIndex(item => {
-          // Compare IDs
-          if (item.id !== product.id) return false;
-          
-          // Compare customizations if they exist
-          const itemCustomizations = item.selectedCustomizations?.sort() || [];
-          const productCustomizations = product.selectedCustomizations?.sort() || [];
-          
-          // If lengths are different, customizations don't match
-          if (itemCustomizations.length !== productCustomizations.length) return false;
-          
-          // Check if all customizations match
-          return itemCustomizations.every(
-            (id, index) => id === productCustomizations[index]
-          );
-        });
+        const safeProduct = { ...product, quantity: Math.max(1, product.quantity) };
+        const existingItemIndex = cart.findIndex(
+          (item) => item.id === safeProduct.id && hasSameCustomizations(item, safeProduct)
+        );
 
         if (existingItemIndex === -1) {
-          // If the product with these exact customizations is not in the cart, add it as a new item
-          set({ cart: [...cart, { ...product }] });
-        } else {
-          // If the product with the same customizations exists, update its quantity
-          const updatedCart = cart.map((item, idx) => {
-            if (idx === existingItemIndex) {
-              return {
-                ...item,
-                quantity: item.quantity + product.quantity,
-              };
-            }
-            return item;
-          });
-          set({ cart: updatedCart });
+          set({ cart: [...cart, safeProduct] });
+          return;
         }
+
+        set({
+          cart: cart.map((item, index) =>
+            index === existingItemIndex
+              ? { ...item, quantity: item.quantity + safeProduct.quantity }
+              : item
+          ),
+        });
       },
 
       updateMenuQuantity: (product: IMenuCart, quantity: number) => {
         const { cart } = get();
+        const nextQuantity = Math.max(1, quantity);
 
-        const updatedCart = cart.map((item) => {
-          // Compare IDs and customizations to find the exact item
-          const itemCustomizations = item.selectedCustomizations?.sort() || [];
-          const productCustomizations = product.selectedCustomizations?.sort() || [];
-          
-          const sameCustomizations = 
-            itemCustomizations.length === productCustomizations.length &&
-            itemCustomizations.every((id, index) => id === productCustomizations[index]);
-          
-          if (item.id === product.id && sameCustomizations) {
-            return { ...item, quantity };
-          }
-          return item;
+        set({
+          cart: cart.map((item) =>
+            item.id === product.id && hasSameCustomizations(item, product)
+              ? { ...item, quantity: nextQuantity }
+              : item
+          ),
         });
-
-        set({ cart: updatedCart });
       },
 
       removeMenuFromCart: (product: IMenuCart) => {
         const { cart } = get();
-        
-        const updatedCart = cart.filter((item) => {
-          // If IDs don't match, keep the item
-          if (item.id !== product.id) return true;
-          
-          // If customizations don't match, keep the item
-          const itemCustomizations = item.selectedCustomizations?.sort() || [];
-          const productCustomizations = product.selectedCustomizations?.sort() || [];
-          
-          return !(
-            itemCustomizations.length === productCustomizations.length &&
-            itemCustomizations.every((id, index) => id === productCustomizations[index])
-          );
+
+        set({
+          cart: cart.filter(
+            (item) => !(item.id === product.id && hasSameCustomizations(item, product))
+          ),
         });
-        
-        set({ cart: updatedCart });
+      },
+
+      applyCoupon: (code: string) => {
+        const { getCartSummary } = get();
+        const currentSummary = getCartSummary();
+        const result = validatePromotion(code, currentSummary.subTotal);
+
+        if (!result.ok) {
+          set({ couponCode: null });
+          return { ok: false, message: result.message };
+        }
+
+        set({ couponCode: normalizeCouponCode(code) });
+        return { ok: true, message: `${result.promotion.label} aplicado.` };
+      },
+
+      clearCoupon: () => {
+        set({ couponCode: null });
       },
 
       clearCart: () => {
-        set({ cart: [] });
+        set({ cart: [], couponCode: null });
       },
     }),
     {
-      name: "shopping-cart", // Local storage key for persistence
+      name: "shopping-cart",
     }
   )
 );

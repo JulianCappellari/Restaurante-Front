@@ -1,64 +1,60 @@
-import type { NextAuthConfig } from "next-auth";
-import NextAuth from "next-auth";
+import type { NextAuthOptions, User } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 
-import { getUserByEmail } from "./actions";
+import { getUserByEmail } from "./actions/user/get-user-by-email";
 import bcryptjs from "bcryptjs";
-import { getUserByEmail2 } from "./actions/user/get-user-by-email2";
 
-export const authConfig: NextAuthConfig = {
+export const authConfig: NextAuthOptions = {
   pages: {
     signIn: "/auth/login",
     newUser: "/auth/register",
   },
   callbacks: {
     async session({ session, token }) {
-      console.log("Sesión actual:", session);
-      session.user = token.user;
+      if (session.user && token.sub) {
+        session.user.id = token.sub;
+      }
+      if (session.user && typeof token.role === "string") {
+        session.user.role = token.role as User["role"];
+      }
       return session;
     },
     async jwt({ token, user }) {
       if (user) {
-        console.log("Usuario autenticado (JWT):", user);
-        token.user = user;
+        token.role = user.role;
       }
       return token;
     },
   },
   providers: [
     Credentials({
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
       async authorize(credentials) {
-        console.log("Intentando autorizar con credenciales:", credentials);
         const parsedCredentials = z
           .object({ email: z.string().email(), password: z.string().min(6) })
           .safeParse(credentials);
 
-        if (!parsedCredentials.success) {
-          throw new Error("Las credenciales son inválidas");
-        }
+        if (!parsedCredentials.success) return null;
 
         const { email, password } = parsedCredentials.data;
+        const user = await getUserByEmail(email);
 
-        const user = await getUserByEmail2(email);
-        console.log("Usario obtenido: ", user);
-        // if (!user) return null;
-        if (!user) {
-          throw new Error("No se encontró el usuario");
-        }
+        if (!user) return null;
 
         const isPasswordValid = await bcryptjs.compare(password, user.password);
-        // if (!isPasswordValid) return null;
-        if (!isValidPassword) {
-          throw new Error("Contraseña incorrecta");
-        }
+        if (!isPasswordValid) return null;
 
-        const { password: _, ...rest } = user; // Exclude password from user object
-        console.log("Usuario autorizado:", rest);
-        return rest;
+        return {
+          id: String(user.id),
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          role: user.role,
+        };
       },
     }),
   ],
 };
-
-export const { signIn, signOut, auth } = NextAuth(authConfig);

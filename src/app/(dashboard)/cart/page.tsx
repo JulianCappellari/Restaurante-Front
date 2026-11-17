@@ -1,86 +1,60 @@
 "use client";
+
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { ProductosEnElCarrito } from "./ui/ProductosEnElCarrito";
 import { InformacionOrden } from "./ui/infromacion-orden/InformacionOrden";
-import useAuthStore from "@/store/auth/useAuthStore";
 import { useCartStore } from "@/store/cart/cart-store";
 import { useRouter } from "next/navigation";
 import { getUserIdFromToken } from "@/utils/getUserIdFromToken";
 import { useUserAddress } from "../../../hooks/useUserAddress";
-import { ArrowLeft, MapPin, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, MapPin, ShoppingBag } from "lucide-react";
 import { useCheckoutStore } from "@/store";
+import CouponBox from "@/components/cart/CouponBox";
+import { CheckoutSteps } from "./ui/CheckoutSteps";
 
 const CartPage = () => {
   const router = useRouter();
-  const isAuthenticated = useAuthStore((store) => store.isAuthenticated);
+  const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
   const totalItems = useCartStore((state) => state.getTotalItems());
-  const { selectedAddress, setSelectedAddress } = useCheckoutStore();
-
-  const handleCheckout = () => {
-    if (isAuthenticated) {
-      router.push("/cart/payment-method");
-    } else {
-      router.push("/auth/login");
-    }
-  };
+  const storedAddress = useCheckoutStore((state) => state.selectedAddress);
+  const setSelectedAddress = useCheckoutStore((state) => state.setSelectedAddress);
 
   useEffect(() => {
-    const id = getUserIdFromToken();
-    setUserId(id);
+    setUserId(getUserIdFromToken());
+    setReady(true);
   }, []);
 
-  const { addresses, loading } = useUserAddress(userId);
+  const { addresses, loading, error: addressError, retry } = useUserAddress(userId);
 
-  // Si el carrito está vacío, mostrar estado vacío
+  const selectedAddress = addresses.find((address) => address.id === storedAddress?.id);
+
+  if (!ready) {
+    return <div className="customer-shell py-10 text-cliente-muted" role="status">Cargando tu carrito…</div>;
+  }
+
   if (totalItems === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center mb-8">
+      <div className="customer-shell py-8 sm:py-12">
+        <div className="mx-auto max-w-5xl">
+          <BackToMenu />
+          <div className="mt-5 rounded-2xl border border-cliente-line bg-white px-5 py-10 text-center sm:py-16">
+            <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-primario-50 text-primario-700">
+              <ShoppingBag className="h-9 w-9" />
+            </div>
+            <h1 className="mt-6 text-3xl font-bold text-gray-950">
+              Tu carrito está vacío
+            </h1>
+            <p className="mx-auto mt-3 max-w-md text-gray-600">
+              Agregá platos de la carta para elegir la dirección de envío y el medio de pago.
+            </p>
             <Link
               href="/menu"
-              className="flex items-center text-primario-600 hover:text-primario-700 transition-colors"
+              className="btn-primary customer-press mt-6 min-h-12"
             >
-              <ArrowLeft className="mr-2" size={20} />
-              Volver al menú
+              Ver la carta
             </Link>
-          </div>
-
-          <div className="text-center py-16">
-            <div className="max-w-md mx-auto">
-              <div className="mb-6">
-                <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg
-                    className="w-12 h-12 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                    />
-                  </svg>
-                </div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                  Tu carrito está vacío
-                </h1>
-                <p className="text-gray-600 mb-8">
-                  Agregá algunos productos deliciosos para comenzar tu pedido
-                </p>
-              </div>
-
-              <Link
-                href="/menu"
-                className="inline-flex items-center px-6 py-3 bg-primario-500 hover:bg-primario-600 text-white font-medium rounded-lg transition-colors shadow-md hover:shadow-lg"
-              >
-                Explorar menú
-              </Link>
-            </div>
           </div>
         </div>
       </div>
@@ -88,117 +62,128 @@ const CartPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center mb-8">
-          <Link
-            href="/menu"
-            className="flex items-center text-primario-600 hover:text-primario-700 transition-colors"
-          >
-            <ArrowLeft className="mr-2" size={20} />
-            Volver al menú
-          </Link>
-        </div>
+    <div className="customer-shell py-6 sm:py-10">
+      <div className="mx-auto max-w-6xl">
+        <BackToMenu />
 
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-8">
-          Tu Carrito
-        </h1>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Productos en el carrito */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-800">
-                Productos seleccionados
-              </h2>
-              <span className="text-sm text-gray-500">
-                {totalItems} {totalItems === 1 ? 'Item' : 'Items'}
-              </span>
-            </div>
-
-            <ProductosEnElCarrito />
+        <CheckoutSteps step="cart" />
+        <header className="mt-3 flex flex-col justify-between gap-4 border-b border-cliente-line pb-5 md:flex-row md:items-end">
+          <div>
+            <h1 data-split className="mt-2 text-4xl leading-tight text-cliente-ink sm:text-5xl">Tu carrito</h1>
+            <p className="mt-2 text-gray-600">
+              Revisá tus platos y elegí la dirección de envío antes de pasar al pago.
+            </p>
           </div>
+          <span className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm">
+            {totalItems} {totalItems === 1 ? "unidad" : "unidades"}
+          </span>
+        </header>
 
-          {/* Resumen de compra */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                Resumen de tu pedido
-              </h2>
-              <InformacionOrden />
+        <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_390px]">
+          <section data-reveal="up" className="rounded-2xl border border-cliente-line bg-white p-5 md:p-6">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">Productos seleccionados</h2>
             </div>
+            <ProductosEnElCarrito />
+          </section>
 
-            {/* Direcciones guardadas */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <div className="flex items-center mb-4">
-                <MapPin className="text-primario-500 mr-2" size={20} />
-                <h3 className="text-lg font-semibold text-gray-800">
-                  Tus direcciones guardadas
+          <aside data-stagger className="min-w-0 space-y-5">
+            <section className="rounded-2xl border border-cliente-line bg-white p-5 sm:p-6">
+              <h2 className="text-xl font-bold text-gray-900">Resumen del pedido</h2>
+              <div className="mt-4">
+                <InformacionOrden />
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-cliente-line bg-white p-5 sm:p-6">
+              <div className="mb-4 flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-primario-700" />
+                <h3 className="text-lg font-bold text-gray-900">
+                  Dirección de envío
                 </h3>
               </div>
 
               {loading ? (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="animate-spin text-primario-500" />
+                <div role="status" className="flex items-center gap-2 py-4 text-sm text-cliente-muted">
+                  <Loader2 aria-hidden className="size-4 motion-safe:animate-spin" /> Buscando tus direcciones…
+                </div>
+              ) : addressError ? (
+                <div className="rounded-xl bg-cliente-mist p-3 text-sm text-cliente-ink">
+                  <p role="alert">No pudimos cargar tus direcciones.</p>
+                  <button type="button" className="min-h-11 font-semibold underline underline-offset-4" onClick={retry}>Volver a cargar direcciones</button>
                 </div>
               ) : addresses.length > 0 ? (
                 <div className="space-y-3">
                   {addresses.map((address) => (
-                    <div
+                    <label
                       key={address.id}
-                      className={`border rounded-lg p-4 cursor-pointer transition-colors
-                        ${
-                          selectedAddress?.id === address.id
-                            ? "border-primario-500 bg-primario-50"
-                            : "border-gray-200"
-                        }
-                      `}
-                      onClick={() => setSelectedAddress(address)}
+                      className={`flex cursor-pointer gap-3 rounded-lg border p-4 transition ${
+                        selectedAddress?.id === address.id
+                          ? "border-primario-500 bg-primario-50"
+                          : "border-gray-200 hover:border-primario-300"
+                      }`}
                     >
                       <input
                         type="radio"
                         name="address"
                         checked={selectedAddress?.id === address.id}
                         onChange={() => setSelectedAddress(address)}
-                        className="mr-2"
+                        className="mt-1 accent-cliente-blue"
                       />
-                      <span className="font-medium">
-                        {address.street} {address.streetNumber}
+                      <span>
+                        <span className="block font-semibold break-words text-gray-900">
+                          {address.street} {address.streetNumber}
+                        </span>
+                        <span className="mt-1 block text-sm text-gray-600">
+                          {address.city}, {address.province}, CP {address.postalCode}
+                        </span>
                       </span>
-                      <span className="block text-sm text-gray-600">
-                        {address.city}, {address.province}, CP{" "}
-                        {address.postalCode}
-                      </span>
-                    </div>
+                    </label>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 py-2">
-                  No tenés direcciones guardadas. Podés agregar una en el
-                  checkout.
-                </p>
+                <div className="rounded-lg bg-stone-50 p-4 text-sm text-gray-600">
+                  <p>{userId ? "Agregá una dirección desde tu cuenta antes de confirmar el envío." : "Iniciá sesión para elegir una dirección de envío."}</p>
+                  <Link href={userId ? "/cuenta/direccion" : "/auth/login?redirect=/cart"} className="mt-2 inline-flex min-h-11 items-center font-semibold text-primario-700 underline underline-offset-2">
+                    {userId ? "Ir a direcciones" : "Iniciar sesión"}
+                  </Link>
+                </div>
               )}
-            </div>
+            </section>
 
-            {/* Botón de pago */}
-            <button
-              onClick={handleCheckout}
-              disabled={!selectedAddress}
-              className={`w-full py-3 px-6 rounded-lg font-medium text-lg transition-colors shadow-md
-                  ${
-                    !selectedAddress
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-primario-500 hover:bg-primario-600 text-white hover:shadow-lg"
-                  }
-                `}
-            >
-              Continuar al pago
-            </button>
-          </div>
+            <CouponBox />
+
+            {userId ? (
+              <button
+                type="button"
+                onClick={() => router.push("/cart/payment-method")}
+                disabled={loading || !selectedAddress}
+                className="btn-primary customer-press min-h-12 w-full"
+              >
+                Continuar al pago
+              </button>
+            ) : (
+              <Link href="/auth/login?redirect=/cart" className="btn-primary customer-press flex min-h-12 w-full items-center justify-center">
+                Iniciá sesión para continuar
+              </Link>
+            )}
+          </aside>
         </div>
       </div>
     </div>
   );
 };
+
+function BackToMenu() {
+  return (
+    <Link
+      href="/menu"
+      className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-cliente-blue hover:underline"
+    >
+      <ArrowLeft className="h-4 w-4" />
+      Volver a la carta
+    </Link>
+  );
+}
 
 export default CartPage;

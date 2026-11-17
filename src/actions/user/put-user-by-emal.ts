@@ -31,10 +31,15 @@ export const putUserByEmail = async (id: number, data: Partial<IUser>) => {
       withCredentials: true
     });
     return response.data;
-  } catch (error: any) {
+  } catch (error) {
+    const message = axios.isAxiosError(error)
+      ? error.response?.data || error.message
+      : error instanceof Error
+      ? error.message
+      : error;
     console.error(
       "Error al actualizar el usuario:",
-      error.response?.data || error.message
+      message
     );
     throw error; // Lanza el error para que el frontend lo maneje si quiere
   }

@@ -1,35 +1,28 @@
+import Link from "next/link";
+import FormularioDeRegistro from "./ui/FormularioDeDregistro";
+import { customerReturn } from "@/lib/customer-return";
 
-import Link from 'next/link';
-import FormularioDeRegistro from './ui/FormularioDeDregistro';
-
-export default function RegisterPage() {
+export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ redirect?: string | string[] }> }) {
+  const returnTo = customerReturn((await searchParams).redirect);
   return (
-    <main className="min-h-dvh grid place-items-center px-4 py-24">
-      <section
-        className="w-full max-w-md rounded-2xl bg-card shadow-soft border p-6 md:p-8"
-        aria-labelledby="register-heading"
-      >
-        <div className="space-y-1 text-center mb-8">
-          <h1 id="register-heading" className="text-3xl font-bold tracking-tight">
-            Crear cuenta
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Completa tus datos para registrarte
-          </p>
-        </div>
-        
-        <FormularioDeRegistro />
-        
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          ¿Ya tienes una cuenta?{' '}
-          <Link 
-            href="/auth/login" 
-            className="font-medium text-primary hover:underline"
-          >
-            Iniciar sesión
-          </Link>
+    <section className="w-full rounded-2xl border bg-white p-5 sm:p-8" aria-labelledby="register-heading">
+      <div className="mb-6 space-y-2">
+        <h1 id="register-heading" className="text-4xl text-cliente-ink">
+          Crear cuenta
+        </h1>
+        <p className="text-sm text-cliente-muted">
+          Completá tus datos para registrarte.
         </p>
-      </section>
-    </main>
+      </div>
+
+      <FormularioDeRegistro returnTo={returnTo} />
+
+      <p className="mt-6 text-center text-sm text-gray-500">
+        ¿Ya tenés una cuenta?{" "}
+        <Link href={`/auth/login?redirect=${encodeURIComponent(returnTo)}`} className="font-semibold text-primario-700 hover:underline">
+          Iniciar sesión
+        </Link>
+      </p>
+    </section>
   );
 }

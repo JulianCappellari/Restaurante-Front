@@ -17,14 +17,16 @@ export const deleteAddressById = async (id: number) => {
       headers: {
         Authorization: `Bearer ${token}`,
       },
-      withCredentials: true, // por si el backend necesita enviar/recibir cookies
+      withCredentials: true,
     });
     return response.data;
   } catch (error) {
-    console.error(
-      "Error al eliminar la direccion:",
-      error.response?.data || error.message
-    );
+    const message = axios.isAxiosError(error)
+      ? error.response?.data || error.message
+      : error instanceof Error
+      ? error.message
+      : error;
+    console.error("Error al eliminar la direccion:", message);
     throw new Error("No se pudo eliminar la direccion.");
   }
 };

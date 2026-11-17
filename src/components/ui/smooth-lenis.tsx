@@ -1,44 +1,42 @@
-"use client"
-import { useEffect } from "react"
-import Lenis from "@studio-freight/lenis"
-import { usePathname } from "next/navigation"
-import { gsap } from "gsap"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
+"use client";
 
+import { useEffect } from "react";
+import Lenis from "lenis";
+import "lenis/dist/lenis.css";
+import { usePathname } from "next/navigation";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+// Scroll suave sincronizado con ScrollTrigger. La portada usa scroll nativo porque
+// su escena fijada ajusta capítulos con la rueda.
 export function SmoothLenis() {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (typeof window === "undefined") return
+    if (pathname === "/" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    // registrar ScrollTrigger una vez
-    if (!gsap.core.globals().ScrollTrigger) {
-      gsap.registerPlugin(ScrollTrigger)
-    }
+    gsap.registerPlugin(ScrollTrigger);
 
     const lenis = new Lenis({
-      duration: 0.9,          // libre, sin sensación de secciones
+      duration: 1.05,
       easing: (t: number) => 1 - Math.pow(1 - t, 3),
       smoothWheel: true,
       wheelMultiplier: 1,
       touchMultiplier: 1,
-      syncTouch: true,
       infinite: false,
       gestureOrientation: "vertical",
-    })
+    });
 
-    // GSAP <-> Lenis: un único “clock”
-    lenis.on("scroll", ScrollTrigger.update)
-    const update = (time: number) => lenis.raf(time * 1000)
-    gsap.ticker.add(update)
-    gsap.ticker.lagSmoothing(0)
+    lenis.on("scroll", ScrollTrigger.update);
+    const update = (time: number) => lenis.raf(time * 1000);
+    gsap.ticker.add(update);
+    gsap.ticker.lagSmoothing(0);
 
-    // limpieza
     return () => {
-      gsap.ticker.remove(update)
-      lenis.destroy()
-    }
-  }, [pathname])
+      gsap.ticker.remove(update);
+      lenis.destroy();
+    };
+  }, [pathname]);
 
-  return null
+  return null;
 }

@@ -1,213 +1,161 @@
 "use client";
-import React, { useState } from "react";
-import { IOrder, IOrderItem } from "@/interfaces";
-import { AlarmClockCheck, Bike, CheckCircle, ChefHat, ClipboardList } from "lucide-react";
-import Image from "next/image";
 
-// Extend the IOrderItem interface to include the menu property
-interface OrderItemWithMenu extends IOrderItem {
-  menu?: {
-    nameDish: string;
-    imageUrl?: string;
-    ingredients?: Array<{ description: string }>;
-  };
-}
+import { useMemo, useState } from "react";
+import type { IOrder } from "@/interfaces";
+import { Bike, ChevronDown, ClipboardList, ShoppingBag } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import DishPhoto from "@/components/menu/DishPhoto";
+import { useCartStore } from "@/store";
+import { useRealtime } from "@/hooks/realtime/useRealtime";
+import { formatARS } from "@/lib/format";
+import { getCustomizationDetails, getOrderItemName, getOrderItemUnitPrice, orderSummaryName, orderTableLabel, toCartMenu } from "@/lib/order-utils";
 
-type OrdersClientProps = {
-  orders: Array<Omit<IOrder, 'items'> & { items: OrderItemWithMenu[] }>;
-  error: string | null;
+const stages = {
+  received: "Recibido",
+  preparing: "En preparación",
+  ready: "Listo",
+  on_the_way: "En camino",
+  delivered: "Entregado",
 };
 
-export default function OrdersClient({ orders, error }: OrdersClientProps) {
-  const [tab, setTab] = useState<"actuales" | "entregados">("actuales");
-  const actualOrders = orders.filter((o) => o.state !== "delivered");
-  const deliveredOrders = orders.filter((o) => o.state === "delivered");
+const orderDate = new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeZone: "UTC" });
+const orderDateTime = new Intl.DateTimeFormat("es-AR", {
+  dateStyle: "medium", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires",
+});
+
+function formatOrderDate(value: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Fecha no disponible";
+  return (/^\d{4}-\d{2}-\d{2}$/.test(value) ? orderDate : orderDateTime).format(date);
+}
+
+const inProgress = (order: IOrder) => !order.cancelledAt && order.state !== "delivered";
+
+export default function OrdersClient({ orders, error }: { orders: IOrder[]; error: string | null }) {
+  const [filter, setFilter] = useState<"all" | "current" | "history">("all");
+  const [notice, setNotice] = useState<{ orderId: number; added: number; skipped: number } | null>(null);
+  const router = useRouter();
+  const refresh = useMemo(() => () => router.refresh(), [router]);
+  const realtimeHandlers = useMemo(() => ({ order_updated: refresh, order_cancelled: refresh, order_refunded: refresh }), [refresh]);
+  useRealtime("customer", realtimeHandlers);
+  const addMenuToCart = useCartStore((state) => state.addMenuToCart);
+  const count = orders.filter(inProgress).length;
+  const filters = [
+    { id: "all", label: "Todos", count: orders.length },
+    { id: "current", label: "En curso", count },
+    { id: "history", label: "Historial", count: orders.length - count },
+  ] as const;
+  const visible = orders.filter((order) => filter === "all" || (filter === "current" ? inProgress(order) : !inProgress(order)));
+
+  function reorder(order: IOrder) {
+    let added = 0;
+    let skipped = 0;
+    for (const item of order.items ?? []) {
+      const product = toCartMenu(item);
+      if (product && product.available !== false) {
+        addMenuToCart(product);
+        added += product.quantity;
+      } else {
+        skipped += item.quantity;
+      }
+    }
+    setNotice({ orderId: order.id, added, skipped });
+  }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8 text-center">Mis Pedidos</h1>
+    <div className="customer-shell py-6 sm:py-9">
+      <header className="account-heading">
+        <h1 data-split>Mis pedidos</h1>
+        <p>Seguí tus pedidos en curso y consultá los anteriores.</p>
+      </header>
 
-      {/* Tabs */}
-      <div className="flex justify-center gap-4 mb-10">
-        {["actuales", "entregados"].map((type) => (
-          <button
-            key={type}
-            onClick={() => setTab(type as "actuales" | "entregados")}
-            className={`px-5 py-2 rounded-full font-semibold transition-all duration-300 
-              ${
-                tab === type
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-          >
-            {type === "actuales" ? "Actuales" : "Entregados"}
-          </button>
-        ))}
-      </div>
-
-      {/* Mensajes de error o sin pedidos */}
-      {error && <div className="text-red-600 text-center mb-4">{error}</div>}
-
-      {!orders.length && !error && (
-        <div className="text-gray-500 text-center mt-10">
-          No tienes pedidos aún.
+      {error ? (
+        <div className="account-empty" role="alert">
+          <h2>{error}</h2>
+          <button type="button" onClick={refresh} className="btn-outline customer-press mt-4 min-h-11">Volver a cargar</button>
         </div>
-      )}
-
-      {/* Listado de pedidos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {(tab === "actuales" ? actualOrders : deliveredOrders).map((order) => (
-          <div
-            key={order.id}
-            className="w-full max-w-[460px] mx-auto bg-white border border-blue-100 rounded-2xl shadow-lg p-6 group transition hover:shadow-2xl hover:scale-[1.01]"
-          >
-            
-
-            {/* Icono de estado */}
-            <div className="flex flex-col items-center justify-start min-w-[56px] mb-4 md:mb-0">
-              <span
-                className={`rounded-full p-2 ${
-                  order.state === "received"
-                    ? "bg-blue-100 text-blue-600"
-                    : order.state === "preparing"
-                    ? "bg-orange-100 text-orange-600"
-                    : order.state === "ready"
-                    ? "bg-yellow-100 text-yellow-700"
-                    : order.state === "on_the_way"
-                    ? "bg-purple-100 text-purple-700"
-                    : "bg-green-100 text-green-700"
-                }`}
-              >
-                {order.state === "received" && (
-                  <ClipboardList className="w-6 h-6" />
-                )}
-                {order.state === "preparing" && <ChefHat className="w-6 h-6" />}
-                {order.state === "ready" && <AlarmClockCheck className="w-6 h-6" />}
-                {order.state === "on_the_way" && <Bike className="w-6 h-6" />}
-                {order.state === "delivered" && (
-                  <CheckCircle className="w-6 h-6" />
-                )}
-              </span>
-            </div>
-
-            <div className="flex-1 space-y-4">
-              {/* Encabezado */}
-              <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
-                <div>
-                  <h2 className="text-lg font-bold text-blue-900">
-                    Pedido #{order.id}
-                  </h2>
-                  <p className="text-xs text-gray-400">
-                    {new Date(order.date).toLocaleString()}
-                  </p>
-                </div>
-                <div className="text-xs text-gray-500">
-                  {order.deliveryType === "delivery"
-                    ? "Envío a domicilio"
-                    : "Para retirar en el local"}
-                </div>
-              </div>
-
-              {/* Estado visual */}
-              <span
-                className={`inline-block px-4 py-1 rounded-full text-xs font-bold border-2 shadow-sm
-                ${
-                  order.state === "received"
-                    ? "bg-blue-50 text-blue-700 border-blue-200"
-                    : order.state === "preparing"
-                    ? "bg-orange-50 text-orange-700 border-orange-200"
-                    : order.state === "ready"
-                    ? "bg-yellow-50 text-yellow-800 border-yellow-200"
-                    : order.state === "on_the_way"
-                    ? "bg-purple-50 text-purple-700 border-purple-200"
-                    : "bg-green-50 text-green-700 border-green-200"
-                }`}
-              >
-                {order.state === "received" && "Pedido recibido"}
-                {order.state === "preparing" && "En preparación"}
-                {order.state === "ready" &&
-                  (order.deliveryType === "in_place"
-                    ? "Listo para retirar"
-                    : "Listo para envío")}
-                {order.state === "on_the_way" && "En camino"}
-                {order.state === "delivered" && "Entregado"}
-              </span>
-
-              {/* Items del pedido */}
-              <div className="flex flex-wrap gap-3">
-                {Array.isArray(order.items) && order.items.length > 0 ? (
-                  order.items.map((item) => {
-                    const itemTotal = Number(item.price) * item.quantity;
-                    return (
-                      <div
-                        key={item.id}
-                        className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 shadow-sm w-full"
-                      >
-                        {item.imageUrl ? (
-                          <div className="relative w-10 h-10">
-                            <Image
-                              src={item.imageUrl}
-                              alt={item.menuName}
-                              fill
-                              className="rounded object-cover"
-                              sizes="40px"
-                            />
-                          </div>
-                        ) : (
-                          <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
-                            <ChefHat className="w-5 h-5 text-gray-400" />
-                          </div>
-                        )}
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-gray-800 truncate">
-                            {item.menuName}
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-500">
-                              ${Number(item.price).toFixed(2)} c/u
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-blue-700 text-sm font-bold">
-                                x{item.quantity}
-                              </span>
-                              <span className="text-green-700 font-medium whitespace-nowrap">
-                                ${itemTotal.toFixed(2)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <span className="text-xs text-gray-400 px-2 py-1 bg-gray-100 rounded">
-                    Sin items
-                  </span>
-                )}
-              </div>
-
-              {/* Total */}
-              <div className="flex justify-between items-center pt-3 border-t border-blue-100">
-                <span className="text-sm text-gray-500">Total:</span>
-                <span className="text-xl font-bold text-blue-700">
-                  {typeof order.total_amount === "number"
-                    ? `$${order.total_amount.toFixed(2)}`
-                    : `$${order.total_amount ?? "0"}`}
-                </span>
-              </div>
-            </div>
+      ) : orders.length === 0 ? (
+        <div className="account-empty">
+          <ClipboardList aria-hidden className="mb-3 size-7 text-cliente-blue" />
+          <h2>Todavía no tenés pedidos</h2>
+          <p>Los pedidos desde tu cuenta aparecen acá.</p>
+          <Link href="/menu" className="btn-primary customer-press mt-4 min-h-11">Explorar la carta</Link>
+        </div>
+      ) : (
+        <>
+          <div aria-label="Filtrar pedidos" role="group" className="account-filters">
+            {filters.map(({ id, label, count }) => (
+              <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)}>
+                {label} <span>{count}</span>
+              </button>
+            ))}
           </div>
-        ))}
-
-        {/* Sin pedidos en tab actual */}
-        {(tab === "actuales" ? actualOrders : deliveredOrders).length === 0 &&
-          !error && (
-            <div className="text-gray-400 text-center py-10">
-              No hay pedidos {tab === "actuales" ? "actuales" : "entregados"}.
+          {visible.length === 0 && (
+            <div className="account-empty">
+              <h2>{filter === "current" ? "No hay pedidos en curso" : "Todavía no hay pedidos en el historial"}</h2>
+              <button type="button" onClick={() => setFilter("all")} className="btn-outline customer-press mt-4 min-h-11">Ver todos</button>
             </div>
           )}
-      </div>
+          <div className="account-ledger">
+            {visible.map((order) => {
+              const delivery = order.deliveryType === "delivery";
+              const status = order.cancelledAt ? "cancelled" : order.state;
+              const label = order.cancelledAt ? "Cancelado" : stages[order.state] || "Estado pendiente";
+              const itemCount = (order.items ?? []).reduce((total, item) => total + item.quantity, 0);
+              const feedback = notice?.orderId === order.id ? notice : null;
+              return (
+                <article key={order.id} id={`pedido-${order.id}`} className="account-entry">
+                  <div className="account-entry-top">
+                    <div>
+                      <p className="account-meta flex flex-wrap gap-x-2"><span>Pedido #{order.id}</span><span>{formatOrderDate(order.date)}</span></p>
+                      <h2>{orderSummaryName(order)}</h2>
+                    </div>
+                    <span className="account-status" data-status={status}>{label}</span>
+                  </div>
+                  <div className="account-entry-foot">
+                    <p className="account-meta flex items-center gap-2">
+                      {delivery && <Bike aria-hidden className="size-4" />}
+                      {delivery ? "Envío a domicilio" : (orderTableLabel(order) || "En el salón")}
+                    </p>
+                    <strong className="account-amount">{formatARS(order.total_amount)}</strong>
+                  </div>
+                  <details className="account-details">
+                    <summary>Ver detalle{itemCount > 0 ? ` (${itemCount})` : ""}<ChevronDown aria-hidden className="size-4" /></summary>
+                    {order.items?.length ? (
+                      <ul className="divide-y divide-cliente-line">
+                        {order.items.map((item) => (
+                          <li key={item.id} className="flex items-start gap-3 py-3">
+                            <div className="relative size-11 shrink-0 overflow-hidden rounded-lg">
+                              <DishPhoto src={item.imageUrl || item.menu?.imageUrl} sizes="44px" />
+                            </div>
+                            <div className="min-w-0 flex-1 break-words text-sm">
+                              <p className="font-semibold">{item.quantity} × {getOrderItemName(item)}</p>
+                              {getCustomizationDetails(item).map((option, index) => <p key={index} className="account-meta">{option}</p>)}
+                              {item.notes && <p className="account-meta">{item.notes}</p>}
+                            </div>
+                            <span className="shrink-0 text-sm font-semibold tabular-nums">{formatARS(getOrderItemUnitPrice(item) * item.quantity)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : <p className="account-meta py-3">El detalle de este pedido no está disponible.</p>}
+                    <div className="flex flex-wrap items-center gap-3 pb-3">
+                      <button type="button" className="btn-outline customer-press min-h-11" onClick={() => reorder(order)}>
+                        <ShoppingBag aria-hidden className="size-4" /> Volver a pedir
+                      </button>
+                      {feedback?.added ? <Link href="/cart" className="inline-flex min-h-11 items-center text-sm font-semibold text-cliente-blue underline underline-offset-4">Ver carrito</Link> : null}
+                    </div>
+                    {feedback && <p className="account-meta pb-3" role="status">
+                      {feedback.added > 0 ? `Agregamos ${feedback.added} ${feedback.added === 1 ? "unidad" : "unidades"} al carrito.` : "No pudimos agregar platos de este pedido."}
+                      {feedback.added > 0 && feedback.skipped > 0 && " Algunos platos ya no están disponibles."}
+                    </p>}
+                  </details>
+                </article>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }

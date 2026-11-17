@@ -1,170 +1,160 @@
-import { GalleryGrid, InfiniteMovingCardsDemo, LayoutGridDemo } from "@/components";
-import LocationSection from "@/components/dashboard/LocationSection";
-import MenuDestacado from "@/components/dashboard/MenuDestacado";
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { ArrowDown, ArrowRight, CakeSlice, CheckCircle2, ClipboardList, QrCode, Salad, UtensilsCrossed } from "lucide-react";
+import styles from "./home.module.css";
+import HomeScroll from "./HomeScroll";
 
-const galleryItems = [
-  { 
-    id: 1, 
-    src: "/Fondo-restaurante.jpg", 
-    alt: "Salón principal", 
-    span: "sm:col-span-2",
-    category: "Ambiente"
-  },
-  { 
-    id: 2, 
-    src: "/Fondo-restaurante.jpg", 
-    alt: "Plato de la casa",
-    category: "Especialidad"
-  },
-  { 
-    id: 3, 
-    src: "/Fondo-restaurante.jpg", 
-    alt: "Mesa preparada",
-    category: "Eventos"
-  },
-  { 
-    id: 4, 
-    src: "/Fondo-restaurante.jpg", 
-    alt: "Sector barra", 
-    span: "sm:col-span-2 lg:col-span-1",
-    category: "Barra"
-  },
-  { 
-    id: 5, 
-    src: "/Fondo-restaurante.jpg", 
-    alt: "Postre del chef",
-    category: "Postres"
-  },
-  { 
-    id: 6, 
-    src: "/Fondo-restaurante.jpg", 
-    alt: "Terraza exterior",
-    category: "Terraza"
-  }
-]
+export const metadata: Metadata = {
+  title: "Restaurante App | Carta y reservas",
+  description: "Explorá la carta, hacé tu pedido online o reservá una mesa en Restaurante App.",
+};
 
-export default function Page() {
+const sections = [
+  { category: "entrada", label: "Entradas", description: "Para empezar mientras elegís el resto.", icon: Salad, photo: "/fotos/02-entradas-empanadas.webp" },
+  { category: "principal", label: "Principales", description: "Los platos que llenan la mesa.", icon: UtensilsCrossed, photo: "/fotos/03-principales-bife.webp" },
+  { category: "postre", label: "Postres", description: "Para cerrar la comida con algo dulce.", icon: CakeSlice, photo: "/fotos/04-postres-flan.webp" },
+];
+
+const diningSteps = [
+  { title: "Escaneá el QR", text: "Abrí la carta con el código de la mesa.", icon: QrCode, screen: "La carta", detail: "Elegí qué querés comer." },
+  { title: "Armá tu pedido", text: "Elegí tus platos, ajustá ingredientes y mandá el pedido a cocina.", icon: UtensilsCrossed, screen: "Tu pedido", detail: "Personalizá y confirmá." },
+  { title: "Seguí cada plato", text: "Consultá el estado del pedido o llamá al mozo cuando lo necesites.", icon: ClipboardList, screen: "En preparación", detail: "Revisá cómo va tu pedido." },
+];
+
+export default function HomePage() {
   return (
-    <main id="main" className="overflow-hidden">
-      {/* HERO */}
-      <section aria-labelledby="hero-heading" className="relative isolate min-h-[80svh]">
-        <Image
-          src="/Fondo-restaurante.jpg"
-          alt="Ambiente del restaurante"
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
-        />
-        <div className="absolute inset-0 bg-black/60" />
-        <div className="relative z-10 flex min-h-[80svh] items-center">
-          <div className="container text-center text-white">
-            <h1 id="hero-heading" className="text-4xl font-bold sm:text-5xl md:text-6xl">
-              Bienvenidos a Restaurante App
-            </h1>
-            <p className="mt-4 text-lg sm:text-xl/relaxed opacity-90">
-              Explora todo lo que tenemos para tentar a tu paladar
-            </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Link href="/reserva" className="px-4 py-2 text-lg font-semibold text-white bg-primario-500 rounded hover:bg-primario-700 transition">
-                Reservar mesa
+    <div id="contenido-portada" tabIndex={-1} className={styles.home}>
+      <HomeScroll />
+      <div data-home-progress className={styles.readingProgress} aria-hidden="true" />
+
+      <section data-home-hero className={styles.hero} aria-labelledby="home-title">
+        <div className={`${styles.shell} ${styles.heroLayout}`}>
+          <div className={styles.heroCopy}>
+            <h1 id="home-title" data-hero-title>¿Qué se come hoy?</h1>
+            <p data-hero-copy>Elegí algo rico de la carta, pedí online o reservá una mesa para venir a comer.</p>
+            <div className={styles.heroActions} data-hero-actions>
+              <Link href="/menu" className={styles.primary}>
+                Ver la carta <ArrowRight aria-hidden="true" size={19} />
               </Link>
-              <Link href="/menu" className="px-4 py-2 text-lg font-semibold text-white bg-secundario-600 rounded hover:bg-secundario-700 transition">
-                Hacer un pedido
+              <Link href="/reserva" className={styles.secondary}>Reservar mesa</Link>
+            </div>
+            <Link href="/#en-el-salon" className={styles.heroHint}>
+              ¿Ya estás en el salón? <ArrowDown aria-hidden="true" size={17} />
+            </Link>
+          </div>
+
+          <figure className={styles.heroImage} data-hero-figure>
+            <div className={styles.imageCrop} data-hero-crop>
+              <Image
+                src="/portada/milanesa-editorial.webp"
+                alt="Milanesa napolitana gratinada con papas y limón"
+                fill
+                priority
+                sizes="(max-width: 767px) 92vw, (max-width: 1280px) 49vw, 605px"
+              />
+            </div>
+            <figcaption>Foto ilustrativa</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section data-home-intro className={styles.intro} aria-label="Cómo funciona">
+        <div className={styles.shell}>
+          <p data-scrub-text className={styles.introText}>
+            Elegí tu plato, mandalo a cocina desde la mesa y seguí cada etapa hasta que llega a tu lugar.
+          </p>
+        </div>
+      </section>
+
+      <section id="explorar" data-home-categories className={styles.categories} aria-labelledby="categories-title">
+        <div className={`${styles.shell} ${styles.sectionHead}`}>
+          <h2 id="categories-title">Explorá la carta</h2>
+          <Link className={styles.textLink} href="/menu">Ver todos los platos <ArrowRight aria-hidden="true" size={17} /></Link>
+        </div>
+        <ul className={styles.categoryList} data-h-track>
+          {sections.map(({ category, label, description, icon: Icon, photo }) => (
+            <li key={category} data-category-entry className={styles.categoryItem}>
+              <Link href={`/menu?categoria=${category}`} className={styles.categoryLink}>
+                <Image src={photo} alt="" fill sizes="(min-width: 960px) 40vw, 100vw" className={styles.categoryPhoto} />
+                <span className={styles.categoryShade} aria-hidden="true" />
+                <span className={styles.categoryContent}>
+                  <Icon aria-hidden="true" size={28} strokeWidth={1.6} />
+                  <h3>{label}</h3>
+                  <p>{description}</p>
+                  <span className={styles.categoryGo}>Ver {label.toLowerCase()} <ArrowRight aria-hidden="true" size={18} /></span>
+                </span>
               </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section id="en-el-salon" data-home-dining className={styles.dining} aria-labelledby="dining-title">
+        <div data-dining-stage className={styles.diningStage}>
+          <div className={`${styles.shell} ${styles.diningLayout}`}>
+            <div className={styles.diningCopy}>
+              <h2 id="dining-title">Pedí desde tu mesa</h2>
+              <ol className={styles.diningSteps}>
+                {diningSteps.map(({ title, text }, index) => (
+                  <li key={title} data-dining-step>
+                    <span className={styles.stepNumber} aria-hidden="true">{index + 1}</span>
+                    <div><h3>{title}</h3><p>{text}</p></div>
+                  </li>
+                ))}
+              </ol>
+              <Link href="/#reservar" className={styles.textLink}>Ir a reservas <ArrowDown aria-hidden="true" size={17} /></Link>
+            </div>
+
+            <div className={styles.diningScene}>
+              <Image src="/fotos/06-pedido-en-mesa.webp" alt="" fill
+                sizes="(max-width: 767px) 92vw, (max-width: 1280px) 53vw, 650px" />
+              <div className={styles.sceneShade} aria-hidden="true" />
+              <div className={styles.phone} aria-hidden="true">
+                <div className={styles.phoneHeader}><UtensilsCrossed size={15} /> Menú de mesa</div>
+                <div className={styles.phoneBody}>
+                  {diningSteps.map(({ icon: Icon, screen, detail }, index) => (
+                    <div data-dining-screen data-first={index === 0 ? "" : undefined} className={styles.phoneScreen} key={screen}>
+                      <div className={styles.phoneIcon}><Icon size={25} strokeWidth={1.6} /></div>
+                      <strong>{screen}</strong>
+                      <p>{detail}</p>
+                      <div className={styles.phoneRule} />
+                      <span className={styles.phoneStatus}>{index === 2 && <CheckCircle2 size={13} />} {["QR de la mesa", "Revisá tu carrito", "Recibido en cocina"][index]}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <span className={styles.sceneLabel}>Demostración del menú de mesa</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* SOBRE NOSOTROS */}
-      <section aria-labelledby="about-heading" className="bg-muted py-16 md:py-20">
-        <div className="container">
-          <div className="mx-auto max-w-3xl text-center">
-            <h2 id="about-heading" className="text-3xl font-bold sm:text-4xl">
-              Sobre nosotros
-            </h2>
-            <p className="mt-4 text-base leading-7 text-muted-foreground">
-              En Restaurante App nos enfocamos en una experiencia culinaria memorable. Cada plato se elabora con
-              ingredientes frescos y de calidad. Buscamos sabor, consistencia y servicio ágil.
-            </p>
+      <section id="reservar" data-home-booking className={styles.booking} aria-labelledby="booking-title">
+        <div className={`${styles.shell} ${styles.bookingLayout}`}>
+          <div className={styles.bookingCopy}>
+            <h2 id="booking-title" data-booking-title>¿Venís a comer?</h2>
+            <p className={styles.bookingText}>Reservá tu mesa para el turno que prefieras.</p>
+            <Link href="/reserva" className={styles.bookingButton} data-magnet>
+              Reservar mesa <ArrowRight aria-hidden="true" size={19} />
+            </Link>
           </div>
+          <figure className={styles.bookingPhoto}>
+            <Image src="/fotos/19-reservas-mesa-detalle.webp" alt="Mesa puesta para una reserva" fill sizes="(min-width: 768px) 40vw, 92vw" />
+          </figure>
         </div>
       </section>
 
-      {/* GALERÍA */}
-      <section aria-labelledby="gallery-heading" className="bg-background py-16 md:py-20">
-      <div className="container">
-        <div className="mx-auto max-w-3xl text-center">
-          <h2 id="gallery-heading" className="text-3xl font-bold sm:text-4xl">Galería</h2>
-          <p className="mt-3 text-muted-foreground">Ambiente, platos y momentos en nuestro restaurante.</p>
+      <footer className={styles.footer}>
+        <div className={`${styles.shell} ${styles.footerLayout}`}>
+          <Link href="/" className={styles.footerBrand}>Restaurante App</Link>
+          <nav aria-label="Enlaces al pie">
+            <Link href="/menu">Carta</Link>
+            <Link href="/reserva">Reservas</Link>
+            <Link href="/nosotros">Nosotros</Link>
+          </nav>
         </div>
-
-        <div className="mt-10">
-          <GalleryGrid items={galleryItems} />
-        </div>
-      </div>
-    </section>
-
-      {/* MENÚ DESTACADO */}
-      <section className="py-20 bg-white min-h-[750px]">
-        <div className="container mx-auto text-center flex flex-col justify-between">
-          <h2 className="text-4xl font-bold text-primario-500  ">
-            Menú Destacado
-          </h2>
-          <div className="border-b-2 border-black mb-16 mt-4 w-full flex justify-center items-center"></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8 items-center justify-center px-4">
-            <MenuDestacado 
-              title="Pizza Margherita"
-              description="Clásica pizza italiana con salsa de tomate, mozzarella fresca, albahaca y aceite de oliva."
-              price={4500}
-              image="/Fondo-restaurante.jpg"
-              category="Pizzas"
-              featured={true}
-            />
-            <MenuDestacado 
-              title="Milanesa Napolitana"
-              description="Milanesa de carne con salsa de tomate, jamón y queso gratinado. Acompañada de puré de papas."
-              price={3800}
-              image="/Fondo-restaurante.jpg"
-              category="Carnes"
-            />
-            <MenuDestacado 
-              title="Ensalada César"
-              description="Lechuga romana, crutones, queso parmesano y aderezo césar. Opción con pollo o vegetariana."
-              price={3200}
-              image="/Fondo-restaurante.jpg"
-              category="Ensaladas"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* TESTIMONIOS */}
-      <section aria-labelledby="reviews-heading" className="bg-muted py-16 md:py-20">
-        <div className="container">
-          <div className="mx-auto max-w-3xl text-center">
-            <h2 id="reviews-heading" className="text-3xl font-bold sm:text-4xl">
-              Lo que dicen nuestros clientes
-            </h2>
-          </div>
-          <div className="mt-10">
-            <InfiniteMovingCardsDemo />
-          </div>
-        </div>
-      </section>
-
-      {/* CONTACTO / UBICACIÓN */}
-      <section aria-labelledby="location-heading" className="bg-muted py-16 md:py-20">
-        <div className="container">
-          <h2 id="location-heading" className="sr-only">Ubicación y contacto</h2>
-          <div className="flex w-full items-center justify-center">
-            <LocationSection />
-          </div>
-        </div>
-      </section>
-    </main>
+      </footer>
+    </div>
   );
 }

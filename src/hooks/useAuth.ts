@@ -57,7 +57,8 @@ export function useAuth() {
     checkAuth();
   }, [router]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, _password: string) => {
+    void _password;
     // Mock login - replace with your actual login logic
     const mockUser = {
       id: 1,

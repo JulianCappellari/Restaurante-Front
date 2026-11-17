@@ -1,13 +1,11 @@
-import ClientProfilePage from '@/components/cuenta/perfil/ClientProfilePage';
-import { getUserFromToken } from '@/utils/getUserFromToken';
-import { cookies } from 'next/headers';
+import ClientProfilePage from "@/components/cuenta/perfil/ClientProfilePage";
+import { getUserFromToken } from "@/utils/getUserFromToken";
+import { cookies } from "next/headers";
 
-
-export default function ProfilePage() {
-  const cookieStore = cookies();
-  const token = cookieStore.get('token')?.value;
-  const userEmail = token ? getUserFromToken(token)?.email : null;
-  console.log("userEmail", userEmail);
+export default async function ProfilePage() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
+  const userEmail = getUserFromToken(token)?.email ?? null;
 
   return <ClientProfilePage userEmail={userEmail} />;
 }

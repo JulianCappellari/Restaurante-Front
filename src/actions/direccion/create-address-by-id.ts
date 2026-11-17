@@ -4,7 +4,7 @@ import { IAddress } from "@/interfaces";
 import axios from "axios";
 import { cookies } from "next/headers";
 
-export const createAddressById = async (data: IAddress) => {
+export const createAddressById = async (data: Omit<IAddress, "id">) => {
   const url = process.env.NEXT_PUBLIC_API_URL2;
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
@@ -14,20 +14,16 @@ export const createAddressById = async (data: IAddress) => {
   }
 
   try {
-    const response = await axios.post(
-      `${url}/addresses`,
-      data,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        withCredentials: true, // por si el backend necesita enviar/recibir cookies
-      }
-    );
+    const response = await axios.post(`${url}/addresses`, data, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      withCredentials: true,
+    });
 
     return response.data;
   } catch (error) {
-    console.error("❌ Error al guardar dirección:", error);
+    console.error("Error al guardar direccion:", error);
     throw error;
   }
 };

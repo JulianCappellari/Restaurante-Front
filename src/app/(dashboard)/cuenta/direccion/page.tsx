@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { PlusCircle, Pencil, Trash2, MapPin } from "lucide-react";
+import { MapPin, Pencil, PlusCircle, Trash2 } from "lucide-react";
 import { getAllAddressByUserId } from "@/actions/direccion/get-address-by-user-id";
 import { IAddress } from "@/interfaces";
 import { getUserIdFromToken } from "@/utils/getUserIdFromToken";
@@ -18,27 +18,33 @@ const DireccionPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<IAddress | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-
-  const userId = getUserIdFromToken();
+  const [userId, setUserId] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchAddresses();
+    setUserId(getUserIdFromToken());
   }, []);
 
-  const fetchAddresses = async () => {
-    if (!userId) {
-      console.warn("No se encontró userId");
+  const fetchAddresses = async (id: number | null) => {
+    if (!id) {
+      setLoading(false);
       return;
     }
+
+    setLoading(true);
     try {
-      const data = await getAllAddressByUserId(Number(userId));
-      setAddresses(data);
+      const data = await getAllAddressByUserId(id);
+      setAddresses(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error al obtener direcciones:", error);
+      setAddresses([]);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchAddresses(userId);
+  }, [userId]);
 
   const handleAdd = () => {
     setSelectedAddress(null);
@@ -53,8 +59,8 @@ const DireccionPage = () => {
       setIsEditing(true);
       setIsModalOpen(true);
     } catch (error) {
-      console.error("Error al obtener la dirección:", error);
-      alert("No se pudo cargar la dirección para editar.");
+      console.error("Error al obtener la direccion:", error);
+      alert("No se pudo cargar la direccion para editar.");
     }
   };
 
@@ -68,136 +74,132 @@ const DireccionPage = () => {
     if (!userId) return;
     const payload = {
       ...newAddress,
-      userId: Number(userId),
+      userId,
       floor: newAddress.floor ?? null,
       apartment: newAddress.apartment ?? null,
     };
+
     try {
       if (isEditing && selectedAddress) {
         await putAddressById(selectedAddress.id, payload);
-        // toast.success('Dirección editada correctamente');
       } else {
-        // console.log("Payload dirección a enviar:", payload);
         await createAddressById(payload);
-        // toast.success('Dirección agregada correctamente');
       }
-      await fetchAddresses();
+      await fetchAddresses(userId);
       handleCloseModal();
     } catch (error) {
-      console.error("Error al guardar dirección:", error);
-      alert("Hubo un error al guardar la dirección.");
-      // toast.error('Hubo un error al guardar la dirección.');
+      console.error("Error al guardar direccion:", error);
+      alert("Hubo un error al guardar la direccion.");
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("¿Estás seguro de que deseas eliminar esta dirección?")) return;
+    if (!confirm("Estas seguro de que deseas eliminar esta direccion?")) return;
     try {
       await deleteAddressById(id);
-      await fetchAddresses();
-      // toast.success('Dirección eliminada correctamente');
+      await fetchAddresses(userId);
     } catch (error) {
-      console.error("Error al eliminar la dirección:", error);
-      alert("No se pudo eliminar la dirección.");
-      // toast.error('No se pudo eliminar la dirección.');
+      console.error("Error al eliminar la direccion:", error);
+      alert("No se pudo eliminar la direccion.");
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header mejorado con botón de agregar siempre visible */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+    <div className="customer-shell py-6 sm:py-10">
+      <div className="mx-auto max-w-6xl">
+        <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Mis Direcciones</h1>
-            <p className="text-gray-500 mt-1">Administra tus direcciones de envío</p>
+            <h1 data-split className="mt-2 text-4xl leading-tight text-cliente-ink sm:text-5xl">Mis direcciones</h1>
+            <p className="mt-2 text-gray-600">
+              Gestiona los lugares donde queres recibir tus pedidos.
+            </p>
           </div>
           <button
             onClick={handleAdd}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg inline-flex items-center gap-2 transition-all shadow-md"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primario-600 px-5 py-3 font-semibold text-white transition hover:bg-primario-700"
+            type="button"
           >
             <PlusCircle className="h-5 w-5" />
-            Nueva dirección
+            Nueva direccion
           </button>
-        </div>
+        </header>
 
-        {loading ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(3)].map((_, i) => (
-              <Skeleton key={i} className="h-40 w-full rounded-xl bg-gray-200" />
-            ))}
-          </div>
-        ) : addresses.length === 0 ? (
-          <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-200">
-            <MapPin className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-xl font-medium text-gray-700">No tienes direcciones guardadas</h3>
-            <p className="text-gray-500 mt-2 mb-4">Agrega una dirección para comenzar</p>
-            <button
-              onClick={handleAdd}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg inline-flex items-center gap-2 transition-all"
-            >
-              <PlusCircle className="h-5 w-5" />
-              Agregar primera dirección
-            </button>
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {addresses.map((address) => (
-              <div
-                key={address.id}
-                className="bg-white rounded-xl p-6 relative transition-all hover:shadow-lg border border-gray-200 hover:border-blue-200 group"
+        <div className="mt-8">
+          {loading ? (
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} className="h-44 w-full rounded-lg bg-gray-200" />
+              ))}
+            </div>
+          ) : addresses.length === 0 ? (
+            <div className="rounded-lg border bg-white p-10 text-center shadow-sm">
+              <MapPin className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-4 text-2xl font-bold text-gray-950">
+                No tenes direcciones guardadas
+              </h3>
+              <p className="mt-2 text-gray-600">
+                Agrega una direccion para usarla en el checkout.
+              </p>
+              <button
+                onClick={handleAdd}
+                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primario-600 px-5 py-3 font-semibold text-white transition hover:bg-primario-700"
+                type="button"
               >
-                <div className="flex items-start gap-3">
-                  <div className="bg-blue-100 p-2 rounded-full">
-                    <MapPin className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-800 line-clamp-1">
-                      {address.street} {address.streetNumber}
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {address.city}, {address.province}
-                    </p>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs">CP: {address.postalCode}</span>
-                      {address.floor && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs">Piso: {address.floor}</span>}
-                      {address.apartment && <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs">Depto: {address.apartment}</span>}
+                <PlusCircle className="h-5 w-5" />
+                Agregar primera direccion
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {addresses.map((address) => (
+                <article
+                  key={address.id}
+                  className="rounded-2xl border border-cliente-line bg-white p-5 transition hover:border-primario-200 hover:shadow-md"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-11 w-11 place-items-center rounded-lg bg-primario-50 text-primario-700">
+                      <MapPin className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-lg font-bold text-gray-950">
+                        {address.street} {address.streetNumber}
+                      </h3>
+                      <p className="mt-1 text-sm text-gray-600">
+                        {address.city}, {address.province}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Chip>CP {address.postalCode}</Chip>
+                        {address.floor && <Chip>Piso {address.floor}</Chip>}
+                        {address.apartment && <Chip>Depto {address.apartment}</Chip>}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="mt-4 flex justify-end gap-2">
-                  <button
-                    onClick={() => handleEdit(address.id)}
-                    className="text-blue-600 hover:text-blue-800 transition p-2 rounded-full hover:bg-blue-50"
-                    aria-label="Editar dirección"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(address.id)}
-                    className="text-red-600 hover:text-red-800 transition p-2 rounded-full hover:bg-red-50"
-                    aria-label="Eliminar dirección"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-            {/* Tarjeta para agregar nueva dirección */}
-            <button
-              onClick={handleAdd}
-              className="border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center justify-center gap-3 hover:border-blue-400 hover:bg-blue-50 transition-all group"
-            >
-              <div className="bg-blue-100 group-hover:bg-blue-200 p-3 rounded-full transition-all">
-                <PlusCircle className="h-6 w-6 text-blue-600 group-hover:text-blue-700" />
-              </div>
-              <span className="font-medium text-gray-700 group-hover:text-blue-600">
-                Agregar nueva dirección
-              </span>
-            </button>
-          </div>
-        )}
+
+                  <div className="mt-5 flex justify-end gap-2 border-t pt-4">
+                    <button
+                      onClick={() => handleEdit(address.id)}
+                      className="rounded-lg p-2 text-gray-600 transition hover:bg-primario-50 hover:text-primario-700"
+                      aria-label="Editar direccion"
+                      type="button"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(address.id)}
+                      className="rounded-lg p-2 text-red-600 transition hover:bg-red-50 hover:text-red-700"
+                      aria-label="Eliminar direccion"
+                      type="button"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
       <AddressModal2
         open={isModalOpen}
         onClose={handleCloseModal}
@@ -207,5 +209,13 @@ const DireccionPage = () => {
     </div>
   );
 };
+
+function Chip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-gray-600">
+      {children}
+    </span>
+  );
+}
 
 export default DireccionPage;

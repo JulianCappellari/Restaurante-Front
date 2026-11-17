@@ -46,7 +46,10 @@ export const getAllmenu = async (): Promise<IMenu[]> => {
             }
         }
         
-        console.log('Raw API response:', response);
+        console.log('Menu API response:', {
+            status: response.status,
+            items: Array.isArray(response.data) ? response.data.length : 0,
+        });
         
         if (!response.data) {
             throw new Error('La respuesta de la API está vacía');
@@ -59,16 +62,17 @@ export const getAllmenu = async (): Promise<IMenu[]> => {
                 return null;
             }
             
-            // Since we might not have customizations from the API, always initialize as empty array
-            const customizations: IDishCustomization[] = [];
+            const customizations: IDishCustomization[] =
+                menuItem.dishCustomizations || menuItem.customizations || [];
             
             return {
                 ...menuItem,
-                customizations // Always include empty array for customizations
+                customizations,
+                dishCustomizations: customizations
             };
         }).filter(Boolean) as IMenu[]; // Remove any null values
         
-        console.log('Processed menu items:', processedData);
+        console.log('Processed menu items:', processedData.length);
         return processedData;
         
     } catch (error) {

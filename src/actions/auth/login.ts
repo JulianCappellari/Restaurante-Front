@@ -1,21 +1,38 @@
 "use server";
 
-import { IUser } from "@/interfaces";
 import axios from "axios";
+
+type LoginResponse = {
+  token: string;
+  refreshToken: string;
+};
 
 export const getLogin = async (
   email: string,
   password: string
-): Promise<IUser | null> => {
+): Promise<LoginResponse | null> => {
+  const API = process.env.NEXT_PUBLIC_API_URL_BACKEND ?? "http://localhost:3000";
+
   try {
-    const response = await axios.post<IUser>(
-      `${process.env.NEXT_PUBLIC_API_URL}/login`,
-      { email, password }
+    const { data } = await axios.post<LoginResponse>(
+      `${API}/auth/login`,
+      { email, password },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
     );
-    console.log("Usuario obtenido:", response.data);
-    return response.data;
-  } catch (error) {
-    console.error("Error al obtener el usuario:", error);
+
+    return data;
+  } catch (error: unknown) {
+    const axiosError = axios.isAxiosError(error) ? error : null;
+    console.error("[LOGIN] Error:", {
+      status: axiosError?.response?.status,
+      data: axiosError?.response?.data,
+      url: axiosError?.config?.url,
+    });
+
     return null;
   }
 };

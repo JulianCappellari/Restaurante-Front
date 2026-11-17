@@ -1,0 +1,66 @@
+.checkout-panel, .checkout-receipt {
+  min-width: 0;
+  border: 1px solid #cbd3e0;
+  border-radius: 1rem;
+  background: white;
+}
+.checkout-panel { padding: 1rem; }
+.checkout-receipt { overflow: hidden; }
+
+.checkout-option {
+  display: flex;
+  min-height: 4rem;
+  align-items: center;
+  gap: .75rem;
+  border: 1px solid #cbd3e0;
+  border-radius: .75rem;
+  padding: .75rem;
+  cursor: pointer;
+}
+.checkout-option:has(:checked) { border-color: #17336d; background: #eaf0fa; }
+.checkout-option:has(:disabled) { cursor: default; }
+
+.checkout-breakdown div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: .55rem 1rem;
+  flex-wrap: wrap;
+}
+.checkout-breakdown dd {
+  min-width: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.checkout-dialog {
+  inset: 0;
+  margin: auto;
+  width: min(calc(100% - 2rem), 32rem);
+  max-height: 90dvh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-radius: 1rem;
+  background: white;
+  color: #16284e;
+}
+.checkout-dialog::backdrop { background: rgb(14 24 51 / .55); }
+
+@media (min-width: 640px) {
+  .checkout-panel { padding: 1.5rem; }
+}
+@media (max-width: 639px) {
+  .checkout-dialog {
+    inset: auto 0 0;
+    width: 100%;
+    border-radius: 1rem 1rem 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .checkout-dialog[open] {
+    transition: opacity 160ms ease-out, transform 200ms cubic-bezier(.23, 1, .32, 1);
+    @starting-style { opacity: .7; transform: translateY(.5rem); }
+  }
+}

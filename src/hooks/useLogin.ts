@@ -3,38 +3,64 @@ import useAuthStore from "@/store/auth/useAuthStore";
 import Cookies from "js-cookie";
 import { useState } from "react";
 
-// hooks/useLogin.ts
+function getJwtPayload(token: string) {
+  try {
+    return JSON.parse(atob(token.split(".")[1]));
+  } catch {
+    return null;
+  }
+}
+
 export const useLogin = () => {
-    const [isLoading, setIsLoading] = useState(false);
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  
-    const login = async (email: string, password: string) => {
-      setIsLoading(true);
-      setErrorMessage(null);
-  
-      try {
-        console.log(email, password);
-        const response = await getLogin(email, password);
-        console.log(response);
-  
-        if (response) {
-          console.log("Token: ", response.token);
-          Cookies.set("token", response.token, {
-            expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
-          });
-          useAuthStore.getState().setAuthenticated(true);
-          return true; // Indica que el login fue exitoso
-        }
-      } catch (error: any) {
-        setErrorMessage(error.response?.data?.message || "Error al iniciar sesión. Intenta de nuevo.");
-      } finally {
-        setIsLoading(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const login = async (email: string, password: string) => {
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await getLogin(email.trim(), password);
+
+      if (!response?.token) {
+        setErrorMessage("Email o contraseña incorrectos.");
+        return false;
       }
-      return false; // Indica que el login falló
-    };
-  
-    return { login, isLoading, errorMessage };
+
+      const payload = getJwtPayload(response.token);
+
+      Cookies.set("token", response.token, {
+        expires: 7,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+      });
+
+      Cookies.set("refreshToken", response.refreshToken, {
+        expires: 30,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+      });
+
+      if (payload?.role) {
+        Cookies.set("role", payload.role, {
+          expires: 7,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          path: "/",
+        });
+      }
+
+      useAuthStore.getState().setAuthenticated(true);
+      return true;
+    } catch {
+      setErrorMessage("Error al iniciar sesión. Intentá de nuevo.");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
   };
-  
+
+  return { login, isLoading, errorMessage };
+};

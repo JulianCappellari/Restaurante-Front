@@ -14,14 +14,17 @@ export async function getOrderById(orderId: number): Promise<IOrder> {
   }
 
   try {
-    const response = await axios.get(`${url}/orders/${orderId}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true,
-      }
-    );
+    const response = await axios.get<IOrder>(`${url}/orders/${orderId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      withCredentials: true,
+    });
     return response.data;
-  } catch (error: any) {
-    throw new Error(error?.response?.data?.message || "Error al obtener la orden");
+  } catch (error) {
+    const message = axios.isAxiosError(error)
+      ? error.response?.data?.message
+      : error instanceof Error
+      ? error.message
+      : null;
+    throw new Error(message || "Error al obtener la orden");
   }
 }

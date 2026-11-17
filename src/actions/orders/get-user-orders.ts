@@ -14,16 +14,12 @@ export async function getUserOrders(userId: number): Promise<IOrder[]> {
   }
 
   try {
-    // Nueva ruta backend para traer todas las órdenes de un cliente con sus items embebidos
-    const response = await axios.get(`${url}/orders/customer/${userId}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true,
-      }
-    );
-    // Defensive: always return array
+    const response = await axios.get<IOrder[]>(`${url}/orders/customer/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      withCredentials: true,
+    });
     return Array.isArray(response.data) ? response.data : [];
-  } catch (error: any) {
-    return [];
+  } catch {
+    throw new Error("No se pudo cargar el historial.");
   }
 }

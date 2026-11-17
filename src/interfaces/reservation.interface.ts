@@ -15,10 +15,20 @@ export interface Table {
 export interface Booking {
   id: number;
   userId: number;
-  bookingDate: string;       // ISO datetime (ej. 2025-09-10T20:00:00.000Z)
+  bookingDate?: string;       // ISO datetime legacy
+  date?: string;              // YYYY-MM-DD
+  shift?: 'lunch' | 'dinner';
   numberPeople: number;
   status: BookingStatus;
   tableIds?: number[];       // mesas asociadas
+  assignedTables?: Table[];
+  user?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+  };
   notes?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -34,6 +44,16 @@ export interface TableSession {
   status: SessionStatus;
   notes?: string | null;
   waiterId?: number | null;
+  totalAmount?: number;
+  paidAmount?: number;
+  tipAmount?: number;
+  splitCount?: number;
+  closeReason?: string | null;
+  table?: Table;
+  booking?: Booking;
+  orders?: import("./order.interface").IOrder[];
+  payments?: Array<{ id: number; amount: number | string; method: string; status: string; paidAt?: string | null }>;
+  tips?: Array<{ id: number; amount: number | string; method: string; waiterId?: number | null }>;
 }
 
 // Disponibilidad
@@ -50,8 +70,15 @@ export interface AvailableTable {
 
 export interface AvailabilityResponseBase {
   available: boolean;
+  date?: string;
+  shift?: 'lunch' | 'dinner';
+  requiredPeople?: number;
+  breakdown?: {
+    fours?: number[];
+    twos?: number[];
+  };
   message?: string;
-  tables?: AvailableTable[];                 // cuando hay mesas individuales
+  tables?: Array<AvailableTable | number>;                 // cuando hay mesas individuales
   nextAvailableSlots?: AvailableTable[];     // próximos turnos si no hay
   suggestions?: Array<{                      // combinaciones (2+4, 2+2, etc.)
     tableIds: number[];

@@ -1,0 +1,387 @@
+[data-staff] {
+  --staff-ink: #16284e;
+  --staff-blue: #17336d;
+  --staff-bg: #f2f5f8;
+  --staff-line: #d4dfec;
+  --staff-muted: #4c5e77;
+  --primary: 220 65% 26%;
+  --ring: 220 60% 49%;
+  --brand-50: 234 240 250;
+  --brand-100: 221 232 250;
+  --brand-200: 199 214 240;
+  --brand-300: 163 184 221;
+  --brand-400: 99 132 190;
+  --brand-500: 58 91 155;
+  --brand-600: 23 51 109;
+  --brand-700: 22 40 78;
+  --brand-800: 17 31 65;
+  --brand-900: 14 24 51;
+  --brand-950: 10 18 38;
+  background: var(--staff-bg);
+  color: var(--staff-ink);
+}
+
+.staff-shell, .staff-nav-inner {
+  width: min(calc(100% - 2rem), 90rem);
+  margin-inline: auto;
+}
+
+.staff-shell { padding-block: clamp(1.25rem, 4vw, 2.5rem) 3rem; }
+
+.staff-nav {
+  position: sticky;
+  z-index: 40;
+  top: 0;
+  background: var(--staff-blue);
+  color: white;
+  box-shadow: 0 1px 0 #10234b;
+}
+
+.staff-nav-inner {
+  min-height: 4.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.staff-brand, .staff-areas, .staff-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: .375rem;
+}
+
+.staff-brand {
+  gap: .6rem;
+  font-size: .875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.staff-brand-icon {
+  background: #ffdb71;
+  color: var(--staff-ink);
+  border-radius: .625rem;
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+}
+
+.staff-nav a:not(.staff-skip), .staff-nav button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: .45rem;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  border-radius: .625rem;
+  padding-inline: .65rem;
+  font-size: .825rem;
+  font-weight: 600;
+}
+
+.staff-nav a:hover, .staff-nav button:hover { background: rgb(255 255 255 / .13); }
+.staff-nav a[aria-current="page"] { background: #eaf0fa; color: var(--staff-ink); }
+
+[data-staff] :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #2c54a3;
+  outline-offset: 2px;
+}
+
+.staff-nav :where(a, button):focus-visible { outline-color: #ffdb71; }
+.staff-skip:not(:focus) { position: absolute; clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden; }
+.staff-skip:focus { display: inline-block; margin: .5rem; padding: .75rem; color: var(--staff-ink); background: white; }
+
+.staff-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  border-bottom: 1px solid var(--staff-line);
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.staff-area {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  font-weight: 650;
+  font-size: .875rem;
+  color: #315080;
+}
+
+.staff-header h1 {
+  font: 730 clamp(2.2rem, 5.5vw, 3.7rem)/1.02 var(--font-home-display), system-ui, sans-serif;
+  letter-spacing: -.045em;
+  margin-block: .45rem .5rem;
+}
+
+.staff-description { max-width: 57ch; color: var(--staff-muted); font-size: .9rem; line-height: 1.55; }
+.staff-header-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
+
+.staff-panel, [data-staff] .reservation-availability {
+  min-width: 0;
+  border: 1px solid var(--staff-line);
+  border-radius: 1rem;
+  background: white;
+  box-shadow: 0 1px 2px rgb(22 40 78 / .05);
+}
+
+.staff-panel h2, [data-staff] .reservation-availability h3 {
+  color: var(--staff-ink);
+  font-family: var(--font-home-display), system-ui, sans-serif;
+  letter-spacing: -.015em;
+}
+
+.staff-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-bottom: 1.5rem;
+}
+
+.staff-jump a, .staff-control {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  padding: .5rem .75rem;
+  border: 1px solid var(--staff-line);
+  border-radius: .65rem;
+  background: white;
+  color: var(--staff-ink);
+  font-size: .825rem;
+  font-weight: 650;
+}
+
+.staff-jump a:hover, .staff-control:hover { border-color: #a3b8dd; background: #eaf0fa; }
+.staff-control:disabled { opacity: .65; cursor: wait; }
+.staff-shell :where([id]) { scroll-margin-top: 8.5rem; }
+
+.staff-lane {
+  min-width: 0;
+  border: 1px solid var(--lane-line);
+  border-radius: 1rem;
+  background: var(--lane-bg);
+  padding: .75rem;
+}
+
+.staff-lane[data-stage="received"], .staff-queue[data-work="calls"] { --lane-bg: #fdf5e5; --lane-line: #e5cda2; --lane-ink: #77470e; }
+.staff-lane[data-stage="preparing"] { --lane-bg: #eaf0fa; --lane-line: #c7d6f0; --lane-ink: #17336d; }
+.staff-lane[data-stage="ready"], .staff-queue[data-work="dishes"] { --lane-bg: #eaf4ed; --lane-line: #bad6c2; --lane-ink: #25543b; }
+
+.staff-lane-title {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .75rem;
+  color: var(--lane-ink);
+  font-weight: 700;
+}
+
+.staff-lane-title span {
+  margin-left: auto;
+  min-width: 1.85rem;
+  padding: .15rem .3rem;
+  text-align: center;
+  font-size: .8rem;
+  border: 1px solid var(--lane-line);
+  border-radius: .45rem;
+  background: white;
+  font-variant-numeric: tabular-nums;
+}
+
+.staff-queue {
+  min-width: 0;
+  border: 1px solid var(--lane-line);
+  background: var(--lane-bg);
+  border-radius: .8rem;
+  padding: 1rem;
+}
+
+.staff-queue li { border-color: var(--lane-line); }
+[data-staff] .reservation-availability button[type="submit"] { min-height: 2.75rem; }
+.staff-section-title { font-family: var(--font-home-display), system-ui, sans-serif; color: var(--staff-ink); }
+[data-staff] :where(input, textarea, select):not([type="checkbox"], [type="radio"]) { max-width: 100%; }
+
+@media (max-width: 760px) {
+  .staff-nav-inner { flex-wrap: wrap; gap: 0 .5rem; padding-block: .375rem; }
+  .staff-areas { order: 3; width: 100%; overflow-x: auto; padding: .25rem .125rem; }
+  .staff-areas a { flex: 0 0 auto; white-space: nowrap; }
+  .staff-brand { flex: 1; }
+  [data-staff] #contenido-principal { scroll-margin-top: 8rem; }
+}
+
+@media (max-width: 490px) {
+  .staff-areas { gap: .25rem; justify-content: space-between; }
+  .staff-nav .staff-areas a { padding-inline: .45rem; font-size: .73rem; }
+  .staff-areas a svg { display: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .staff-jump a, .staff-control, .staff-nav a, .staff-nav button {
+    transition: background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out;
+  }
+  .staff-control:not(:disabled):active, .staff-nav button:active { transform: translateY(1px); }
+}
+
+/* ===== Mozo: toma de pedido rápida (móvil primero) ===== */
+.waiter-screen { padding-bottom: 7.5rem; }
+@media (min-width: 1024px) { .waiter-screen { padding-bottom: 3rem; } }
+
+.waiter-tables, .waiter-chips { scrollbar-width: none; }
+.waiter-tables::-webkit-scrollbar, .waiter-chips::-webkit-scrollbar { display: none; }
+
+.waiter-tile { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.waiter-tile:hover { box-shadow: 0 10px 22px -16px rgb(22 40 78 / .55); }
+
+.waiter-dock {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 45;
+  display: flex;
+  align-items: stretch;
+  gap: .5rem;
+  padding: .6rem .75rem calc(.6rem + env(safe-area-inset-bottom));
+  background: var(--staff-blue);
+  color: #fff;
+  box-shadow: 0 -12px 28px -20px rgb(10 18 38 / .7);
+}
+.waiter-dock-info {
+  flex: 1;
+  min-width: 0;
+  min-height: 3.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  border-radius: .75rem;
+  padding: .25rem .8rem;
+  background: rgb(255 255 255 / .1);
+  text-align: left;
+}
+.waiter-dock-send {
+  min-height: 3.25rem;
+  padding-inline: 1rem;
+  border-radius: .75rem;
+  background: #ffdb71;
+  color: var(--staff-ink);
+  font-size: .95rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.waiter-dock-send:disabled { opacity: .5; }
+
+@media (max-width: 1023px) {
+  .waiter-sheet:not(.is-open) { display: none; }
+  .waiter-sheet.is-open {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 60;
+    max-height: 92dvh;
+    overflow-y: auto;
+    border-radius: 1rem 1rem 0 0;
+    box-shadow: 0 -20px 40px -20px rgb(10 18 38 / .6);
+    padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* Mozo en móvil: menos encabezado y sin índice (el dock ya concentra las acciones) */
+@media (max-width: 1023px) {
+  .waiter-screen .staff-jump { display: none; }
+}
+@media (max-width: 640px) {
+  .waiter-screen .staff-header { margin-bottom: 1rem; padding-bottom: .9rem; }
+  .waiter-screen .staff-header h1 { font-size: 2rem; margin-block: .25rem .25rem; }
+  .waiter-screen .staff-description { display: none; }
+  .waiter-screen .staff-panel { border-radius: .9rem; }
+}
+/* Resto de roles: el índice de secciones no se corta en dos líneas */
+@media (max-width: 760px) {
+  .staff-jump { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .staff-jump a { flex: 0 0 auto; }
+}
+
+/* ===== Pestañas de vistas del equipo ===== */
+.staff-tabs {
+  display: flex;
+  gap: .375rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-block: 1.25rem 1.5rem;
+  padding: .375rem;
+  border: 1px solid var(--staff-line);
+  border-radius: .9rem;
+  background: white;
+  box-shadow: 0 1px 2px rgb(22 40 78 / .05);
+}
+.staff-tabs::-webkit-scrollbar { display: none; }
+@media (min-width: 761px) {
+  .staff-tabs { position: sticky; z-index: 30; top: 4.75rem; }
+}
+.staff-tab {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: .45rem;
+  min-height: 2.75rem;
+  padding-inline: .9rem;
+  border-radius: .6rem;
+  color: var(--staff-muted);
+  font-size: .875rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.staff-tab:hover { background: #eaf0fa; color: var(--staff-ink); }
+.staff-tab[aria-selected="true"] { background: var(--staff-blue); color: white; }
+.staff-tab-count {
+  min-width: 1.5rem;
+  padding: .05rem .4rem;
+  border-radius: 999px;
+  background: #eaf0fa;
+  color: var(--staff-ink);
+  font-size: .75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.staff-tab[aria-selected="true"] .staff-tab-count { background: rgb(255 255 255 / .2); color: white; }
+.staff-tab-count.is-alert { background: #dc2626; color: white; }
+@media (prefers-reduced-motion: no-preference) {
+  .staff-tab { transition: background-color 140ms ease-out, color 140ms ease-out; }
+  .staff-view { animation: staff-view-in 180ms cubic-bezier(.23, 1, .32, 1); }
+  @keyframes staff-view-in { from { opacity: .4; } to { opacity: 1; } }
+}
+
+/* Mozo: aviso de bandeja en el dock (llamados y platos listos) */
+.waiter-dock-alert {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
+  min-width: 3.25rem;
+  min-height: 3.25rem;
+  padding-inline: .7rem;
+  border-radius: .75rem;
+  background: #f59e0b;
+  color: #3b2300;
+  font-weight: 800;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .waiter-dock-alert { animation: waiter-alert 1.6s ease-out infinite; }
+  @keyframes waiter-alert {
+    0% { box-shadow: 0 0 0 0 rgb(245 158 11 / .65); }
+    70% { box-shadow: 0 0 0 .6rem rgb(245 158 11 / 0); }
+    100% { box-shadow: 0 0 0 0 rgb(245 158 11 / 0); }
+  }
+  .kitchen-card.is-fresh { animation: kitchen-fresh 900ms cubic-bezier(.23, 1, .32, 1); }
+  @keyframes kitchen-fresh { from { opacity: .4; } to { opacity: 1; } }
+}
+.staff-queue[data-work="payments"] { --lane-bg: #eef6ff; --lane-line: #bfd5f5; --lane-ink: #17336d; }
+.staff-queue[data-work="delayed"] { --lane-bg: #fff1f1; --lane-line: #f3c2c2; --lane-ink: #8a1c1c; }
+
+.staff-queue[data-work="changes"] { --lane-bg: #fff8e6; --lane-line: #ecd29a; --lane-ink: #6b4300; }

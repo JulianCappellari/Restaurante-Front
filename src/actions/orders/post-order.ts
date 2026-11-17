@@ -16,11 +16,17 @@ export interface OrderItemPayload {
 }
 
 export interface OrderPayload {
-  customerId: number;
+  customerId: number | null;
   deliveryType: 'delivery' | 'in_place';
   addressId: number | null;
   paymentType: 'cash' | 'card' | 'mp';
   paymentMethodId?: number;
+  tableSessionId?: number | null;
+  waiterId?: number | null;
+  estimatedPrepMinutes?: number | null;
+  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  /** together: todo a cocina; courses: cada tiempo sale cuando la mesa terminó el anterior. */
+  pacing?: 'together' | 'courses';
   state: 'received' | 'preparing' | 'ready' | 'on_the_way' | 'delivered';
   total_amount: number;
   items: Array<{
@@ -28,6 +34,12 @@ export interface OrderPayload {
     quantity: number;
     price: number;
     notes: string;
+    state?: 'received' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
+    station?: 'kitchen' | 'grill' | 'bar' | 'dessert' | 'salad' | 'expo';
+    priority?: 'low' | 'normal' | 'high' | 'urgent';
+    estimatedPrepMinutes?: number | null;
+    /** Comensales de la mesa a los que corresponde el plato. */
+    guestIds?: number[];
     customizations?: Array<{
       customizationId: number;
       isIncluded: boolean;
@@ -53,8 +65,10 @@ export async function postOrder(payload: OrderPayload) {
     // console.log("[postOrder] Orden creada exitosamente:", response.data);
     return response.data;
   } catch (error) {
-    console.error("[postOrder] Error al crear la orden:", error);
-    throw error;
+    if (axios.isAxiosError(error)) {
+      throw new Error(error.response?.data?.error || error.response?.data?.message || error.message || "No se pudo crear el pedido");
+    }
+    throw error instanceof Error ? error : new Error("No se pudo crear el pedido");
   }
 }
 

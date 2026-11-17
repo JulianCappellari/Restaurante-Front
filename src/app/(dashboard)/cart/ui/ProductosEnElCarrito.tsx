@@ -1,167 +1,158 @@
 "use client";
+
 import { useCartStore } from "@/store";
-import Image from "next/image";
+import DishPhoto from "@/components/menu/DishPhoto";
+import { dishPhoto } from "@/lib/dish-photos";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Minus, Plus, Trash2, Loader2 } from "lucide-react";
+import { Loader2, Minus, Plus, Trash2 } from "lucide-react";
+
+const formatARS = (value: number) =>
+  new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  }).format(value);
+
+const parseCurrency = (value: number | string | undefined | null) => {
+  if (typeof value === "number") return value;
+  if (!value) return 0;
+  const clean = value.replace(/[^\d.,-]/g, "");
+  const hasComma = clean.includes(",");
+  const hasDot = clean.includes(".");
+  if (hasComma && hasDot) return Number.parseFloat(clean.replace(/\./g, "").replace(",", ".")) || 0;
+  if (hasComma) return Number.parseFloat(clean.replace(",", ".")) || 0;
+  return Number.parseFloat(clean) || 0;
+};
 
 export const ProductosEnElCarrito = () => {
-  const [cargado, setCargado] = useState(false);
-  const productoEnElCarrito = useCartStore((state) => state.cart);
-  const actualizarCantidadDeProductos = useCartStore(
-    (state) => state.updateMenuQuantity
-  );
-  const eliminarProducto = useCartStore((state) => state.removeMenuFromCart);
+  const [loaded, setLoaded] = useState(false);
+  const cartProducts = useCartStore((state) => state.cart);
+  const updateQuantity = useCartStore((state) => state.updateMenuQuantity);
+  const removeProduct = useCartStore((state) => state.removeMenuFromCart);
 
   useEffect(() => {
-    setCargado(true);
+    setLoaded(true);
   }, []);
 
-  if (!cargado) {
+  if (!loaded) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="animate-spin text-primario-500" size={32} />
+        <Loader2 className="text-primario-600 motion-safe:animate-spin" size={32} />
       </div>
     );
   }
 
-  if (productoEnElCarrito.length === 0) {
+  if (cartProducts.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500 mb-4">Tu carrito está vacío</p>
+      <div className="rounded-lg border border-dashed p-8 text-center">
+        <p className="text-gray-500">Tu carrito esta vacio</p>
         <Link
           href="/menu"
-          className="inline-flex items-center text-primario-600 hover:text-primario-700 font-medium"
+          className="mt-3 inline-flex font-semibold text-primario-700 hover:text-primario-800"
         >
-          Explorar menú
+          Explorar menu
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="divide-y divide-gray-200">
-      {productoEnElCarrito.map((producto) => {
-        // Obtener las personalizaciones seleccionadas
-        const customizacionesSeleccionadas = producto.selectedCustomizations?.length
-          ? producto.dishCustomizations?.filter((c) =>
-              producto.selectedCustomizations?.includes(c.id)
+    <div className="space-y-4">
+      {cartProducts.map((product) => {
+        const selectedCustomizations = product.selectedCustomizations?.length
+          ? product.dishCustomizations?.filter((customization) =>
+              product.selectedCustomizations?.includes(customization.id)
             ) || []
           : [];
+        const extras = selectedCustomizations.reduce(
+          (sum, customization) => sum + parseCurrency(customization.additionalPrice),
+          0
+        );
+        const unitPrice = parseCurrency(product.price) + extras;
+        const subtotal = unitPrice * product.quantity;
 
         return (
-          <div
-            key={producto.id}
-            className="grid grid-cols-12 items-start py-4 gap-4"
+          <article
+            key={`${product.id}-${(product.selectedCustomizations || []).join("-")}`}
+            className="grid grid-cols-[4.25rem_minmax(0,1fr)] items-start gap-3 border-b border-cliente-line pb-4 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:gap-4"
           >
-            {/* Imagen */}
-            <div className="col-span-2">
-              <div className="relative aspect-square">
-                <Image
-                  src={producto.imageUrl}
-                  alt={producto.nameDish}
-                  fill
-                  className="rounded-lg object-cover"
-                />
-              </div>
+            <div className="relative aspect-square overflow-hidden rounded-lg bg-stone-100">
+              <DishPhoto
+                src={dishPhoto(product)}
+                sizes="(min-width: 640px) 96px, 68px"
+              />
             </div>
 
-            {/* Nombre, personalizaciones y precio */}
-            <div className="col-span-5">
+            <div className="min-w-0">
               <Link
-                href={`/product/${producto.id}`}
-                className="font-medium text-gray-800 hover:text-primario-600 hover:underline"
+                href={`/product/${product.id}`}
+                className="text-lg font-bold text-gray-900 hover:text-primario-700"
               >
-                {producto.nameDish}
+                {product.nameDish}
               </Link>
 
-              {/* Mostrar personalizaciones */}
-              {customizacionesSeleccionadas.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  <p className="text-sm text-gray-600">Personalizaciones:</p>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    {customizacionesSeleccionadas.map((custom) => (
-                      <li key={custom.id} className="flex items-start">
-                        <span className="mr-1">•</span>
-                        <span>
-                          {custom.name}
-                          {custom.additionalPrice > 0 && (
-                            <span className="text-primario-500">
-                              (+${custom.additionalPrice})
-                            </span>
-                          )}
-                        </span>
+              {selectedCustomizations.length > 0 && (
+                <div className="mt-2 text-sm text-gray-600">
+                  <p className="font-medium text-gray-800">Personalizaciones</p>
+                  <ul className="mt-1 space-y-1">
+                    {selectedCustomizations.map((customization) => (
+                      <li key={customization.id}>
+                        {customization.name}
+                        {parseCurrency(customization.additionalPrice) > 0 && (
+                          <span className="ml-1 text-primario-700">
+                            +{formatARS(parseCurrency(customization.additionalPrice))}
+                          </span>
+                        )}
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
 
-              <p className="text-primario-600 font-medium mt-2">
-                ${Number(producto.price).toFixed(2)}
-                {customizacionesSeleccionadas.some((c) => (c.additionalPrice || 0) > 0) && (
-                  <span className="text-xs text-gray-500 ml-1">
-                    +{" "}
-                    {customizacionesSeleccionadas
-                      .reduce((sum, c) => sum + (Number(c.additionalPrice) || 0), 0)
-                      .toFixed(2)}
-                  </span>
-                )}
+              <p className="mt-3 font-semibold text-primario-700">
+                {formatARS(unitPrice)} c/u
               </p>
             </div>
 
-            {/* Selector de cantidad */}
-            <div className="col-span-3">
-              <div className="flex items-center border border-gray-300 rounded-lg w-fit">
+            <div className="col-span-2 flex flex-wrap items-center justify-between gap-3 sm:col-span-1 sm:flex-col sm:items-end">
+              <div className="flex items-center rounded-lg border border-gray-200">
                 <button
-                  onClick={() =>
-                    actualizarCantidadDeProductos(
-                      producto,
-                      Math.max(1, producto.quantity - 1)
-                    )
-                  }
-                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-l-lg transition-colors"
-                  disabled={producto.quantity <= 1}
+                  onClick={() => updateQuantity(product, Math.max(1, product.quantity - 1))}
+                  className="customer-press grid size-11 place-items-center text-cliente-ink hover:bg-cliente-mist disabled:opacity-40"
+                  disabled={product.quantity <= 1}
+                  type="button"
+                  aria-label="Restar cantidad"
                 >
                   <Minus size={16} />
                 </button>
-                <span className="px-3 text-gray-800">{producto.quantity}</span>
+                <span className="min-w-10 px-2 text-center font-semibold text-gray-900">
+                  {product.quantity}
+                </span>
                 <button
-                  onClick={() =>
-                    actualizarCantidadDeProductos(
-                      producto,
-                      producto.quantity + 1
-                    )
-                  }
-                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-r-lg transition-colors"
+                  onClick={() => updateQuantity(product, product.quantity + 1)}
+                  className="customer-press grid size-11 place-items-center text-cliente-ink hover:bg-cliente-mist"
+                  type="button"
+                  aria-label="Sumar cantidad"
                 >
                   <Plus size={16} />
                 </button>
               </div>
-            </div>
 
-            {/* Subtotal y eliminar */}
-            <div className="col-span-2 flex flex-col items-end">
-              <p className="text-gray-800 font-medium">
-                ${(
-                  (Number(producto.price) +
-                    (producto.selectedCustomizations?.length && producto.dishCustomizations
-                      ? producto.dishCustomizations
-                          .filter((c) => producto.selectedCustomizations?.includes(c.id))
-                          .reduce((sum, c) => sum + (Number(c.additionalPrice) || 0), 0)
-                      : 0)
-                  ) * producto.quantity
-                ).toFixed(2)}
-              </p>
-              <button
-                onClick={() => eliminarProducto(producto)}
-                className="text-gray-400 hover:text-red-500 mt-2 transition-colors"
-                aria-label="Eliminar producto"
-              >
-                <Trash2 size={18} />
-              </button>
+              <div className="text-right">
+                <p className="text-lg font-bold text-gray-950">{formatARS(subtotal)}</p>
+                <button
+                  onClick={() => removeProduct(product)}
+                  className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-red-600 hover:text-red-700"
+                  aria-label="Eliminar producto"
+                  type="button"
+                >
+                  <Trash2 size={16} />
+                  Quitar
+                </button>
+              </div>
             </div>
-          </div>
+          </article>
         );
       })}
     </div>

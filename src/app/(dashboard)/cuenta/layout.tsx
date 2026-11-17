@@ -1,13 +1,7 @@
-export default function AccountLayout({
-    children,
-  }: {
-    children: React.ReactNode;
-  }) {
-    return (
-      <section className="p-4 max-w-auto mx-auto">
-        
-        <div className="space-y-4">{children}</div>
-      </section>
-    );
-  }
-  
+import type { ReactNode } from "react";
+import AccountNav from "@/components/cuenta/AccountNav";
+import "./account.css";
+
+export default function AccountLayout({ children }: { children: ReactNode }) {
+  return <><AccountNav />{children}</>;
+}

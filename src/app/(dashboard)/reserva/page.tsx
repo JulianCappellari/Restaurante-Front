@@ -1,8 +1,8 @@
-// app/reserva/page.tsx
 import AvailabilityForm from "@/components/reservation/AvailabilityForm";
 import BookingConfirm from "@/components/reservation/BookingConfirm";
+import { getUserFromToken } from "@/utils/getUserFromToken";
 import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
+import CustomerIntro from "@/components/dashboard/CustomerIntro";
 
 type InitialAuth = {
   isLoggedIn: boolean;
@@ -13,39 +13,29 @@ type InitialAuth = {
 export default async function ReservationPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
-  let initialAuth: InitialAuth = { isLoggedIn: false, userId: null, email: null };
+  const payload = getUserFromToken(token);
+  const payloadId = payload?.id;
 
-  if (token) {
-    try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET!) as any;
-      initialAuth = {
-        isLoggedIn: true,
-        userId:
-          typeof payload.id === "number"
-            ? payload.id
-            : payload.sub && !Number.isNaN(Number(payload.sub))
-            ? Number(payload.sub)
-            : null,
-        email: payload.email ?? null,
-      };
-    } catch {
-      // token inválido o expirado -> se mantiene logged out
-    }
-  }
+  const initialAuth: InitialAuth = {
+    isLoggedIn: Boolean(token && payload),
+    userId:
+      typeof payloadId === "number"
+        ? payloadId
+        : payloadId && !Number.isNaN(Number(payloadId))
+        ? Number(payloadId)
+        : null,
+    email: payload?.email ?? null,
+  };
 
   return (
-    <div className="min-h-[800px] bg-background">
-      <div className="container py-10">
-        <header className="mb-8 text-center">
-          <h2 className="text-3xl font-bold">Reservas</h2>
-          <p className="mt-1 text-muted-foreground">Verificá disponibilidad y confirmá tu mesa.</p>
-        </header>
-
-        <div className="mx-auto grid max-w-5xl gap-6 lg:flex-cols-2">
-          <AvailabilityForm />
-          <BookingConfirm initialAuth={initialAuth} />
+    <>
+      <CustomerIntro title="Reservá una mesa" description="Elegí cuándo querés venir y para cuántas personas. Después confirmá la reserva desde tu cuenta." image="/fotos/05-salon-reservas.webp" imageAlt="Salón del restaurante preparado para recibir reservas" />
+      <div className="customer-shell py-7 sm:py-10">
+        <div className="grid items-start gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+          <div data-reveal="left"><AvailabilityForm /></div>
+          <div data-reveal="right"><BookingConfirm initialAuth={initialAuth} /></div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

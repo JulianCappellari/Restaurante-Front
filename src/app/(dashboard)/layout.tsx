@@ -1,4 +1,7 @@
-import { TopMenu } from "@/components";
+import "./staff.css";
+import { TopMenu } from "@/components/dashboard/TopMenu";
+import CustomerScope from "@/components/dashboard/CustomerScope";
+import MotionProvider from "@/components/motion/MotionProvider";
 
 
 export default function ShopLayout({
@@ -7,12 +10,10 @@ export default function ShopLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen ">
+    <CustomerScope>
       <TopMenu />
-      {/* <Sidebar /> */}
-      <div className="px-0 ">{children}</div>
-
-      {/* <Footer /> */}
-    </main>
+      <MotionProvider />
+      <main id="contenido-principal" tabIndex={-1} className="min-h-[calc(100dvh-4rem)] scroll-mt-24">{children}</main>
+    </CustomerScope>
   );
 }

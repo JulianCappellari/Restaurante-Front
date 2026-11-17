@@ -5,6 +5,7 @@ import { getUserOrders } from "@/actions/orders/get-user-orders";
 import { getUserFromToken } from "@/utils/getUserFromToken";
 import { cookies } from "next/headers";
 import { IOrder, IMenu, IOrderItem } from "@/interfaces";
+import { getOrderItemMenuId } from "@/lib/order-utils";
 
 interface DecodedUser {
   id: number;
@@ -35,20 +36,26 @@ async function OrdersServerPage() {
     try {
       const userOrders = await getUserOrders(user.id);
       const { getMenuById } = await import("@/actions/menu/get-menu-by-id");
+      const menuRequests = new Map<number, Promise<IMenu | null>>();
+      const loadMenu = (id: number) => {
+        const existing = menuRequests.get(id);
+        if (existing) return existing;
+        const request = getMenuById(id).catch(() => null);
+        menuRequests.set(id, request);
+        return request;
+      };
       
       orders = await Promise.all(
-        userOrders.map(async (order) => {
+        [...userOrders].sort((a, b) => Date.parse(b.date) - Date.parse(a.date) || b.id - a.id).map(async (order) => {
           const items = await Promise.all(
             (order.items || []).map(async (item) => {
               let menu: IMenu | null = null;
               
-              if (item.menuId) {
-                try {
-                  menu = await getMenuById(item.menuId);
-                } catch (e) {
-                  const error = e as Error;
-                  console.error(`Error fetching menu item ${item.menuId}:`, error.message);
-                }
+              const menuId = getOrderItemMenuId(item);
+              if (item.menu) {
+                menu = item.menu;
+              } else if (menuId) {
+                menu = await loadMenu(menuId);
               }
               
               return {
@@ -64,10 +71,8 @@ async function OrdersServerPage() {
           };
         })
       );
-    } catch (e) {
-      const errorObj = e as Error;
-      error = errorObj.message;
-      console.error('Error loading orders:', errorObj);
+    } catch {
+      error = "No pudimos cargar tus pedidos";
     }
   }
   // Importar dinámicamente el Client Component para evitar problemas de parsing

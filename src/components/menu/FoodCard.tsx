@@ -1,115 +1,76 @@
-// components/menu/FoodCard.tsx
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { FC } from "react";
-import { AiOutlineHeart, AiOutlineShoppingCart } from "react-icons/ai";
-import { IMenu } from "@/interfaces";
+import type { CSSProperties } from "react";
+import { ArrowUpRight, Heart } from "lucide-react";
+import type { IMenu } from "@/interfaces/menu.interface";
+import { useFavoritesStore } from "@/store";
+import { formatARS, parseCurrency } from "@/lib/format";
+import { dishPhoto } from "@/lib/dish-photos";
+import DishPhoto from "./DishPhoto";
 
-type FoodCardProps = Omit<IMenu, "nameDish" | "typeDish" | "available"> & {
-  id: number;
-  name: string;
-  price: number | string;
-  onAddToCart?: () => void;
-  category?: string;
-  description?: string;
-  imageUrl?: string | null;
+const typeLabel: Record<IMenu["typeDish"], string> = {
+  Entrada: "Entrada",
+  "Plato Principal": "Principal",
+  Postre: "Postre",
+  Bebida: "Bebida",
+  Ensalada: "Ensalada",
+  Guarnicion: "Guarnición",
 };
 
-/* utils */
-const parsePrice = (v: number | string): number => {
-  if (typeof v === "number") return v;
-  const clean = v.replace(/[^\d.,-]/g, "");
-  const hasComma = clean.includes(",");
-  const hasDot = clean.includes(".");
-  if (hasComma && hasDot)
-    return parseFloat(clean.replace(/\./g, "").replace(",", ".")) || 0;
-  if (hasComma) return parseFloat(clean.replace(",", ".")) || 0;
-  return parseFloat(clean) || 0;
-};
-
-
-
-const FoodCard: FC<FoodCardProps> = ({
-  id,
-  name,
-  price,
-  imageUrl = null,
-  description = "",
-  onAddToCart,
-}) => {
-  const priceNumber = parsePrice(price);
-
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault(); // evita navegar si se hace click sobre la tarjeta
-    onAddToCart ? onAddToCart() : (window.location.href = `/product/${id}`);
-  };
+export default function FoodCard({ dish, index = 0, soldOut = false }: { dish: IMenu; index?: number; soldOut?: boolean }) {
+  const favorite = useFavoritesStore((state) => state.isFavorite(dish.id));
+  const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
+  const photo = dishPhoto(dish);
 
   return (
-    // reemplazá el <article> y el contenido por esto
-    <article className="group relative w-full max-w-xs h-full flex flex-col rounded-2xl border bg-card text-card-foreground shadow-soft transition-shadow hover:shadow-lg">
-      <div className="absolute left-2 top-2 z-20 rounded-md bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground">
-        10% OFF
+    <article
+      data-flip-id={dish.id}
+      className={`menu-card menu-card-in group relative flex min-w-0 flex-col overflow-hidden rounded-2xl bg-white ${soldOut ? "opacity-70" : ""}`}
+      style={{ "--i": Math.min(index, 8) } as CSSProperties}
+    >
+      <div className="relative aspect-[4/3] overflow-hidden bg-cliente-sage">
+        <div className="menu-card-media absolute inset-0">
+          <DishPhoto src={photo} sizes="(min-width: 1024px) 380px, (min-width: 640px) 48vw, 95vw" />
+        </div>
+        <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-cliente-blue shadow-sm">
+          {typeLabel[dish.typeDish] ?? dish.typeDish}
+        </span>
+        {soldOut && (
+          <span className="absolute bottom-3 left-3 rounded-full bg-stone-900/85 px-3 py-1 text-xs font-semibold text-white">Agotado por hoy</span>
+        )}
+        <button
+          type="button"
+          onClick={() => toggleFavorite(dish)}
+          aria-label={`Guardar ${dish.nameDish} en favoritos`}
+          aria-pressed={favorite}
+          className="customer-press absolute right-3 top-3 z-10 grid size-11 place-items-center rounded-full bg-white/95 text-cliente-blue shadow-sm hover:bg-white"
+        >
+          <Heart aria-hidden="true" className={`size-5 transition-transform duration-200 ${favorite ? "fill-current scale-110" : ""}`} />
+        </button>
       </div>
 
-      <button
-        type="button"
-        aria-label="Agregar a favoritos"
-        className="absolute right-2 top-2 z-20 grid h-9 w-9 place-items-center rounded-full bg-white/85 text-foreground shadow hover:bg-white"
-        onClick={(e) => {
-          e.preventDefault(); /* favoritos */
-        }}
-      >
-        <AiOutlineHeart className="h-5 w-5" />
-      </button>
-
-      {/* imagen con ratio fijo */}
-      <Link href={`/product/${id}`} className="block">
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-2xl">
-          <Image
-            src={imageUrl || "/Fondo-restaurante.jpg"}
-            alt={name}
-            fill
-            sizes="(min-width:1024px) 300px, (min-width:640px) 50vw, 100vw"
-            className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-          />
-        </div>
-      </Link>
-
-      {/* cuerpo que estira */}
-      <div className="flex flex-col flex-1 p-4">
-        <Link href={`/product/${id}`} className="block">
-          {/* 2 líneas de alto fijo ≈ 3.5rem con text-lg */}
-          <h3 className="text-lg leading-[1.75rem] font-semibold line-clamp-2 min-h-[3.5rem]">
-            {name}
-          </h3>
-        </Link>
-
-        {description && (
-          // 2 líneas de alto fijo ≈ 2.5rem con text-sm
-          <p className="mt-1 text-sm leading-5 text-muted-foreground line-clamp-2 min-h-[2.5rem]">
-            {description}
-          </p>
-        )}
-
-        {/* footer pegado abajo */}
-        <div className="mt-auto flex items-center justify-between border-t pt-3">
-          <span className="text-lg font-bold text-amber-600">
-            {"$" + priceNumber}
-          </span>
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:opacity-95 focus-visible:focus-ring"
+      <div className="flex flex-1 flex-col gap-2 p-5">
+        <h3 className="text-[1.6rem] leading-[1.08] text-cliente-ink">
+          <Link
+            href={`/product/${dish.id}`}
+            aria-label={`Ver plato ${dish.nameDish}`}
+            className="menu-card-link rounded-sm after:absolute after:inset-0 after:content-['']"
           >
-            <AiOutlineShoppingCart className="h-5 w-5" />
-            Agregar
-          </button>
+            {dish.nameDish}
+          </Link>
+        </h3>
+        {dish.description && <p className="line-clamp-2 text-sm leading-6 text-cliente-muted">{dish.description}</p>}
+        <div className="mt-auto flex items-center justify-between gap-3 border-t border-cliente-line pt-4">
+          <strong className="font-display text-2xl font-bold tabular-nums text-cliente-ink">{formatARS(parseCurrency(dish.price))}</strong>
+          <span className="inline-flex items-center gap-2 text-sm font-semibold text-cliente-blue">
+            Ver plato
+            <span className="menu-card-arrow grid size-9 place-items-center rounded-full bg-cliente-blue text-white">
+              <ArrowUpRight aria-hidden="true" className="size-4" />
+            </span>
+          </span>
         </div>
       </div>
     </article>
   );
-};
-
-export default FoodCard;
+}
