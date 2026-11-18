@@ -1,4 +1,5 @@
 import { getUserBookings } from "@/actions/bookings/get-user-bookings";
+import { getBookingPreOrder } from "@/actions/preorders/preorder-actions";
 import { buildMailUrl, buildWhatsAppUrl } from "@/lib/notifications";
 import { getUserFromToken } from "@/utils/getUserFromToken";
 import { cookies } from "next/headers";
@@ -38,6 +39,12 @@ export default async function MyBookingsPage() {
   const upcoming = bookings.filter((booking) => booking.status === "checked_in" ||
     (["pending", "confirmed"].includes(booking.status) && (!dateKey(booking) || dateKey(booking) >= today)));
   const upcomingIds = new Set(upcoming.map(({ id }) => id));
+  // Pedido anticipado de las próximas reservas pendientes o confirmadas.
+  const preOrders = new Map<number, number>();
+  await Promise.all(upcoming.filter((booking) => ["pending", "confirmed"].includes(booking.status)).map(async (booking) => {
+    const view = await getBookingPreOrder(booking.id).catch(() => null);
+    if (view && view.items.length && view.status !== "cancelled") preOrders.set(booking.id, view.items.reduce((sum, item) => sum + item.quantity, 0));
+  }));
   const past = bookings.filter(({ id }) => !upcomingIds.has(id));
   const byDate = (a: Booking, b: Booking) => dateKey(a).localeCompare(dateKey(b)) || a.id - b.id;
 
@@ -104,6 +111,16 @@ export default async function MyBookingsPage() {
                         </p>
                         <p className="account-meta">{tableNames}</p>
                       </div>
+                      {["pending", "confirmed"].includes(booking.status) && (
+                        <div className="mt-3 flex flex-wrap items-center gap-3">
+                          {preOrders.has(booking.id) && (
+                            <span className="account-status" data-status="confirmed">Pedido listo · {preOrders.get(booking.id)} {preOrders.get(booking.id) === 1 ? "plato" : "platos"}</span>
+                          )}
+                          <Link href={`/cuenta/reservas/${booking.id}/pedido`} className="customer-press inline-flex min-h-11 items-center rounded-xl border border-cliente-blue px-4 text-sm font-semibold text-cliente-blue">
+                            {preOrders.has(booking.id) ? "Ver mi pedido anticipado" : "Dejar pedido para cuando llegue"}
+                          </Link>
+                        </div>
+                      )}
                       <MyBookingActions bookingId={booking.id} currentDate={date} currentShift={booking.shift}
                         canManage={booking.status !== "cancelled" && booking.status !== "completed"} />
                       <div aria-label="Compartir reserva" role="group" className="mt-2 flex flex-wrap gap-x-4 text-sm text-cliente-blue">

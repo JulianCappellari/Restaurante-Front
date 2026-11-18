@@ -18,7 +18,7 @@ const typeLabel: Record<IMenu["typeDish"], string> = {
   Guarnicion: "Guarnición",
 };
 
-export default function FoodCard({ dish, index = 0, soldOut = false }: { dish: IMenu; index?: number; soldOut?: boolean }) {
+export default function FoodCard({ dish, index = 0, soldOut = false, slowMinutes }: { dish: IMenu; index?: number; soldOut?: boolean; slowMinutes?: number }) {
   const favorite = useFavoritesStore((state) => state.isFavorite(dish.id));
   const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
   const photo = dishPhoto(dish);
@@ -39,6 +39,9 @@ export default function FoodCard({ dish, index = 0, soldOut = false }: { dish: I
         {soldOut && (
           <span className="absolute bottom-3 left-3 rounded-full bg-stone-900/85 px-3 py-1 text-xs font-semibold text-white">Agotado por hoy</span>
         )}
+        {!soldOut && slowMinutes ? (
+          <span className="absolute bottom-3 left-3 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">Hoy demora ~{slowMinutes} min</span>
+        ) : null}
         <button
           type="button"
           onClick={() => toggleFavorite(dish)}

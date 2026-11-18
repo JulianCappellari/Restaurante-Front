@@ -34,7 +34,17 @@ type Dish = {
 };
 
 type Selection = Record<number, boolean>;
-type CartLine = { dish: Dish; quantity: number; selected: Selection; notes: string; shareWith?: number[] };
+type CartLine = { dish: Dish; quantity: number; selected: Selection; notes: string; shareWith?: number[]; suggested?: boolean };
+
+/** Estado de la cocina: tiempos por plato y sugerencias cuando una estación está saturada. */
+type Kitchen = {
+  enabled: boolean;
+  stations: Array<{ station: string; queueMinutes: number; saturated: boolean }>;
+  dishes: Record<string, { etaMinutes: number; fast: boolean; slow: boolean; station: string }>;
+  suggestions: number[];
+};
+
+const STATION_LABEL: Record<string, string> = { kitchen: "La cocina", grill: "La parrilla", salad: "Ensaladas", dessert: "Postres", bar: "La barra" };
 
 type Preferences = { allergies: string[]; assisted: boolean; language: "es" | "en" };
 
@@ -107,6 +117,8 @@ const COPY = {
     add: "Agregar al carrito", viewCart: "Ver carrito", send: "Confirmar y enviar a cocina", together: "Todo junto",
     togetherHint: "Cocina prepara todo y sale junto.", courses: "Por tiempos", coursesHint: "Primero las entradas; lo siguiente sale cuando terminen.",
     eta: "Listo en aprox.", held: "En espera", fire: "Traer lo siguiente", prefs: "Preferencias", rate: "¿Te gustó?",
+    busyTitle: "tiene mucha demanda", busyHint: "Estos platos salen antes:", fastIn: "Sale en ~{m} min", slowIn: "Hoy demora ~{m} min",
+    fastFirst: "Más rápido primero", addFast: "Agregar",
   },
   en: {
     call: "Call the waiter", called: "Waiter notified", menu: "Menu", orders: "Your orders", bill: "Bill", carta: "The menu",
@@ -114,6 +126,8 @@ const COPY = {
     add: "Add to cart", viewCart: "View cart", send: "Confirm and send to the kitchen", together: "All together",
     togetherHint: "Everything is cooked and served together.", courses: "Course by course", coursesHint: "Starters first; the next course comes when you finish.",
     eta: "Ready in about", held: "On hold", fire: "Bring the next course", prefs: "Preferences", rate: "Did you like it?",
+    busyTitle: "is very busy", busyHint: "These dishes come out sooner:", fastIn: "Ready in ~{m} min", slowIn: "Takes ~{m} min today",
+    fastFirst: "Fastest first", addFast: "Add",
   },
 } as const;
 
@@ -176,6 +190,8 @@ const accessFailure = (error: unknown) => ({
 
 export default function DiningMenu() {
   const [menu, setMenu] = useState<Dish[]>([]);
+  const [kitchen, setKitchen] = useState<Kitchen | null>(null);
+  const [fastFirst, setFastFirst] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
   const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
@@ -275,6 +291,24 @@ export default function DiningMenu() {
   }, [bootstrapAttempt]);
 
   const visitId = status?.visitId;
+
+  // Estado de la cocina: si falla, la carta funciona igual y sin avisos.
+  useEffect(() => {
+    if (!visitId || accessError) return;
+    let active = true;
+    const load = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const next = await request<Kitchen | null>("kitchen");
+        if (active) setKitchen(next);
+      } catch {
+        if (active) setKitchen(null);
+      }
+    };
+    void load();
+    const timer = window.setInterval(load, 30_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [visitId, accessError]);
 
   useEffect(() => {
     if (!visitId || accessError) return;
@@ -436,13 +470,13 @@ export default function DiningMenu() {
     setInCart(true);
   }
 
-  function openDish(dish: Dish) {
+  function openDish(dish: Dish, suggested = false) {
     if (orderIssue === "confirm" || orderIssue === "catalog") {
       openCart();
       return;
     }
     const selected = Object.fromEntries(dish.dishCustomizations.map((option) => [option.id, option.isDefaultIncluded || option.isRequired]));
-    setDraft({ dish, quantity: 1, selected, notes: "" });
+    setDraft({ dish, quantity: 1, selected, notes: "", suggested });
     requestAnimationFrame(() => {
       if (!dishDialog.current?.open) dishDialog.current?.showModal();
     });
@@ -477,7 +511,7 @@ export default function DiningMenu() {
         expectedTotalCents: total,
         pacing: foodCourses.size > 1 ? pacing : "together",
         items: cart.map((line) => ({
-          menuId: line.dish.id, quantity: line.quantity, notes: line.notes, shareWith: line.shareWith ?? [],
+          menuId: line.dish.id, quantity: line.quantity, notes: line.notes, shareWith: line.shareWith ?? [], suggested: line.suggested === true,
           customizations: line.dish.dishCustomizations
             .filter((option) => option.isDefaultIncluded || option.isRequired || line.selected[option.id])
             .map((option) => ({ customizationId: option.id, isIncluded: Boolean(line.selected[option.id]) })),
@@ -624,10 +658,47 @@ export default function DiningMenu() {
                   onClick={() => setCategory(value)}>{value || t.all}</button>
               ))}
             </div>
+            {kitchen?.enabled && (() => {
+              const busy = kitchen.stations.filter((state) => state.saturated);
+              const picks = kitchen.suggestions.map((id) => dishById.get(id)).filter((dish): dish is Dish => Boolean(dish) && !dish?.soldOut);
+              return (
+                <>
+                  {busy.length > 0 && picks.length > 0 && (
+                    <section aria-label="Platos que salen rápido" className="mb-4 rounded-2xl border border-cliente-blue/20 bg-cliente-butter/50 p-4">
+                      <p className="font-semibold">{busy.map((state) => STATION_LABEL[state.station] ?? state.station).join(" y ")} {t.busyTitle}</p>
+                      <p className="text-sm text-stone-700">{t.busyHint}</p>
+                      <ul className="mt-3 space-y-2">
+                        {picks.map((dish) => (
+                          <li key={dish.id} className="flex items-center gap-3 rounded-xl bg-white p-2">
+                            {dishPhoto(dish) && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={dishPhoto(dish) ?? undefined} alt="" loading="lazy" className="size-12 shrink-0 rounded-lg bg-stone-200 object-cover" referrerPolicy="no-referrer" />
+                            )}
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate font-semibold">{dish.nameDish}</span>
+                              <span className="text-sm text-emerald-800">{t.fastIn.replace("{m}", String(kitchen.dishes[dish.id]?.etaMinutes ?? ""))}</span>
+                            </span>
+                            <button type="button" className={`${focus} customer-press min-h-11 shrink-0 rounded-full bg-cliente-blue px-4 text-sm font-semibold text-white`}
+                              onClick={() => openDish(dish, true)}>{t.addFast}</button>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+                  <button type="button" aria-pressed={fastFirst} onClick={() => setFastFirst((value) => !value)}
+                    className={`${focus} customer-press mb-2 min-h-11 rounded-full border px-4 text-sm font-semibold ${fastFirst ? "border-cliente-blue bg-cliente-blue text-white" : "border-cliente-line bg-white text-cliente-ink"}`}>
+                    {t.fastFirst}
+                  </button>
+                </>
+              );
+            })()}
             {menu.length === 0 ? <p className="py-7 text-stone-700">El menú no tiene platos disponibles. Podés llamar al mozo.</p> : (
               <ul className="grid border-t border-stone-200 sm:grid-cols-2 sm:gap-x-7">
-                {menu.filter((dish) => !category || dish.typeDish === category).map((dish) => {
+                {menu.filter((dish) => !category || dish.typeDish === category)
+                  .sort((a, b) => fastFirst && kitchen ? (kitchen.dishes[a.id]?.etaMinutes ?? 999) - (kitchen.dishes[b.id]?.etaMinutes ?? 999) : 0)
+                  .map((dish) => {
                   const conflicts = conflictsFor(dish, preferences.allergies);
+                  const signal = kitchen?.enabled ? kitchen.dishes[dish.id] : undefined;
                   return (
                   <li key={dish.id} className="border-b border-stone-200">
                     <button type="button" onClick={() => openDish(dish)} disabled={dish.soldOut}
@@ -643,6 +714,8 @@ export default function DiningMenu() {
                         <span className="mt-1 flex flex-wrap items-center gap-2 text-sm font-semibold tabular-nums">
                           {formatARS(Number(dish.price))}
                           {dish.soldOut && <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs text-stone-800">{t.soldOut}</span>}
+                          {!dish.soldOut && signal?.fast && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-900">{t.fastIn.replace("{m}", String(signal.etaMinutes))}</span>}
+                          {!dish.soldOut && signal?.slow && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">{t.slowIn.replace("{m}", String(signal.etaMinutes))}</span>}
                         </span>
                         {conflicts.length > 0 && (
                           <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-amber-800">

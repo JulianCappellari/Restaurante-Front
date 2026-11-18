@@ -68,3 +68,14 @@ Objetivo: cero esperas que no sean de cocina. El cliente no espera para pedir, p
 ### Piloto y demo
 - Administración > Servicio compara tres tiempos (llegada → primer pedido, plato listo → servido, llamado → atención) entre el período actual y el anterior, y entre mesas con QR y mesas con mozo. Una mesa cuenta como "con QR" si al menos un comensal pidió por QR.
 - Demo de mesa mixta (solo en base de prueba o demo): `DB_NAME=restaurante_pruebas npm run demo:mesa` en el backend.
+
+
+## Pedido anticipado
+
+Quien reservó (desde `/cuenta/reservas`) o espera mesa (con un enlace que envía recepción por WhatsApp) deja pedidas bebidas y entradas antes de sentarse. El pedido vive aparte: cocina no lo prepara hasta que recepción abre la mesa, así no se cocina para alguien que no llega. Al abrir la mesa con la reserva, o con **Sentar en mesa…** desde la lista de espera, se convierte en un pedido normal a nombre de quien lo dejó. Si un plato se agotó, se envía el resto y recepción ve cuál faltó. Cocina ve los pedidos próximos en **Llegan pronto**. Administración compara el tiempo "llegada → primer pedido" de estas mesas en el piloto.
+
+Límites de esta versión: sin seña ni cobro anticipado, sin personalización de ingredientes (rigen las opciones por defecto del plato) y sin vincular al comensal con el celular que luego escanea el QR.
+
+## Carta que se adapta a la cocina
+
+Cada plato tiene una estación (cocina, parrilla, ensaladas, postres o bar). Cuando una estación pasa el tiempo de saturación que fija el encargado (20 min por defecto, y deja de estar saturada recién bajo 14), la carta de la mesa, la del mozo y la online avisan "Hoy demora ~N min" en esos platos. La carta de la mesa además sugiere hasta 3 platos que salen antes ("Sale en ~N min") y ofrece ordenar por "Más rápido primero". Nunca se oculta un plato. El encargado puede apagarla, ajustar umbrales y capacidad por estación en **Administración → Radar**, y ve cuántos pedidos vinieron de las sugerencias en **Servicio**.

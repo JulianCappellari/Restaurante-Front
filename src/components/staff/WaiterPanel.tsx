@@ -26,7 +26,7 @@ import { getUserIdFromToken } from "@/utils/getUserIdFromToken";
 import { getCustomizationDetails, getOrderItemName } from "@/lib/order-utils";
 import { Bell, CheckCircle, CreditCard, Minus, Plus, Search, Trash2, Utensils } from "lucide-react";
 import {
-  addSessionGuest, fireNextCourse, getSessionLedger, settleSession, type SessionLedger,
+  addSessionGuest, fireNextCourse, getKitchenSignals, getSessionLedger, settleSession, type KitchenSignals, type SessionLedger,
 } from "@/actions/service/service-actions";
 import RadarStrip from "./RadarStrip";
 // Dock inferior y hoja de comanda: ver staff.css (.waiter-*)
@@ -70,6 +70,17 @@ const customizationDelta = (customization: IDishCustomization, selected: boolean
   return 0;
 };
 
+/* Pedidos especiales frecuentes: un toque los agrega a la nota del plato que ve cocina. */
+const SPECIAL_REQUESTS: Record<string, string[]> = {
+  "Plato Principal": ["Punto jugoso", "A punto", "Bien cocido", "Sin sal", "Sin cebolla", "Salsa aparte"],
+  Entrada: ["Sin sal", "Sin picante", "Salsa aparte", "Para compartir"],
+  Ensalada: ["Aderezo aparte", "Sin cebolla", "Sin queso"],
+  Guarnicion: ["Sin sal", "Bien doradas", "Para compartir"],
+  Postre: ["Sin crema", "Para compartir", "Con vela"],
+  Bebida: ["Sin hielo", "Con limón", "Bien fría"],
+  default: ["Sin sal", "Para compartir"],
+};
+
 export default function WaiterPanel({ menu, tables, bookings, activeSessions }: Props) {
   const router = useRouter();
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
@@ -100,6 +111,16 @@ export default function WaiterPanel({ menu, tables, bookings, activeSessions }: 
   const [newGuest, setNewGuest] = useState("");
   const [settleMethod, setSettleMethod] = useState<"card" | "cash" | "mp">("card");
   const [ledgerBusy, setLedgerBusy] = useState<string | null>(null);
+  const [kitchen, setKitchen] = useState<KitchenSignals | null>(null);
+
+  // Tiempos de cocina: si no cargan, la carta rápida funciona igual.
+  useEffect(() => {
+    let active = true;
+    const load = () => getKitchenSignals().then((value) => { if (active) setKitchen(value); }).catch(() => { if (active) setKitchen(null); });
+    void load();
+    const timer = window.setInterval(load, 30_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, []);
 
   // "Mi sector" se recuerda en el celular del mozo.
   useEffect(() => {
@@ -373,7 +394,7 @@ export default function WaiterPanel({ menu, tables, bookings, activeSessions }: 
             ),
           notes: item.notes,
           state: "received",
-          station: item.menu.typeDish === "Bebida" ? "bar" : item.menu.typeDish === "Postre" ? "dessert" : "kitchen",
+          station: "kitchen", // la estación real la define el backend según el plato
           priority: "normal",
           estimatedPrepMinutes: 25,
           customizations: menuCustomizations(item.menu).map((customization) => ({
@@ -707,6 +728,13 @@ export default function WaiterPanel({ menu, tables, bookings, activeSessions }: 
               ))}
             </div>
 
+            {kitchen?.enabled && kitchen.stations.some((state) => state.saturated) && (
+              <p role="status" className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                <strong>{kitchen.stations.filter((state) => state.saturated).map((state) => ({ kitchen: "Cocina", grill: "Parrilla", salad: "Ensaladas", dessert: "Postres", bar: "Barra" } as Record<string, string>)[state.station] ?? state.station).join(" y ")} con mucha demanda.</strong>
+                {kitchen.suggestions.length > 0 && <> Ofrecé: {kitchen.suggestions.map((id) => menu.find((dish) => dish.id === id)?.nameDish).filter(Boolean).join(", ")}.</>}
+              </p>
+            )}
+
             <div className="mt-3 grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-4">
               {filteredMenu.length === 0 && <p className="col-span-full text-sm text-slate-600">{query.trim() ? "No encontramos platos con esa búsqueda." : "No hay platos disponibles."}</p>}
               {filteredMenu.map((item) => {
@@ -727,6 +755,11 @@ export default function WaiterPanel({ menu, tables, bookings, activeSessions }: 
                       </span>
                     )}
                     <span className="pr-8 text-[0.95rem] font-bold leading-tight text-gray-950">{item.nameDish}</span>
+                    {kitchen?.enabled && (kitchen.dishes[item.id]?.fast || kitchen.dishes[item.id]?.slow) && (
+                      <span className={`mt-1 w-fit rounded-full px-2 py-0.5 text-xs font-semibold ${kitchen.dishes[item.id].slow ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-900"}`}>
+                        {kitchen.dishes[item.id].slow ? "Demora" : "Sale en"} ~{kitchen.dishes[item.id].etaMinutes} min
+                      </span>
+                    )}
                     <span className="mt-2 flex items-end justify-between gap-2">
                       <span className="text-sm font-bold text-primario-700">{formatARS(item.price)}</span>
                       <span className="grid size-9 place-items-center rounded-full bg-primario-600 text-white" aria-hidden="true">
@@ -848,13 +881,34 @@ export default function WaiterPanel({ menu, tables, bookings, activeSessions }: 
                     </div>
                   )}
 
-                  <textarea
-                    value={item.notes}
-                    onChange={(event) => updateItem(item.key, { notes: event.target.value })}
-                    className="mt-3 w-full rounded-lg border px-3 py-2 text-sm"
-                    placeholder="Detalle para cocina: sin sal, punto, etc."
-                    rows={2}
-                  />
+                  <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-2">
+                    <label htmlFor={`nota-${item.key}`} className="text-sm font-semibold text-amber-950">Pedido especial para cocina</label>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Pedidos frecuentes">
+                      {(SPECIAL_REQUESTS[item.menu.typeDish] ?? SPECIAL_REQUESTS.default).map((phrase) => {
+                        const active = item.notes.split(" · ").includes(phrase);
+                        return (
+                          <button key={phrase} type="button" aria-pressed={active}
+                            onClick={() => {
+                              const parts = item.notes.split(" · ").map((part) => part.trim()).filter(Boolean);
+                              const next = active ? parts.filter((part) => part !== phrase) : [...parts, phrase];
+                              updateItem(item.key, { notes: next.join(" · ").slice(0, 255) });
+                            }}
+                            className={`customer-press min-h-9 rounded-full border px-3 text-xs font-semibold ${active ? "border-amber-700 bg-amber-200 text-amber-950" : "border-amber-300 bg-white text-stone-700"}`}>
+                            {phrase}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <textarea
+                      id={`nota-${item.key}`}
+                      value={item.notes}
+                      maxLength={255}
+                      onChange={(event) => updateItem(item.key, { notes: event.target.value })}
+                      className="mt-2 w-full rounded-lg border bg-white px-3 py-2 text-sm"
+                      placeholder="Otro pedido del cliente: sin sal, bien cocido, etc."
+                      rows={2}
+                    />
+                  </div>
                 </article>
               );
             })}

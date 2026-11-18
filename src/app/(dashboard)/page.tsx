@@ -4,6 +4,10 @@ import Link from "next/link";
 import { ArrowDown, ArrowRight, CakeSlice, CheckCircle2, ClipboardList, QrCode, Salad, UtensilsCrossed } from "lucide-react";
 import styles from "./home.module.css";
 import HomeScroll from "./HomeScroll";
+import { getAllmenu } from "@/actions/menu/get-all-menu";
+import DishCarousel, { type CarouselDish } from "@/components/home/DishCarousel";
+import { dishPhoto } from "@/lib/dish-photos";
+import { formatARS, parseCurrency } from "@/lib/format";
 
 export const metadata: Metadata = {
   title: "Restaurante App | Carta y reservas",
@@ -22,7 +26,31 @@ const diningSteps = [
   { title: "Seguí cada plato", text: "Consultá el estado del pedido o llamá al mozo cuando lo necesites.", icon: ClipboardList, screen: "En preparación", detail: "Revisá cómo va tu pedido." },
 ];
 
-export default function HomePage() {
+// La home se regenera cada 5 minutos para reflejar la carta actual.
+export const revalidate = 300;
+
+const FAVORITE_TYPES: Record<string, string> = {
+  "Plato Principal": "Principal", Entrada: "Entrada", Ensalada: "Ensalada", Guarnicion: "Guarnición", Postre: "Postre", Bebida: "Bebida",
+};
+
+/* Platos con foto de la carta real; si el servicio no responde, la home sigue sin el carrusel. */
+async function loadFavorites(): Promise<CarouselDish[]> {
+  try {
+    const menu = await getAllmenu();
+    return menu
+      .filter((dish) => dish.available && dish.typeDish !== "Bebida")
+      .flatMap((dish) => {
+        const photo = dishPhoto(dish);
+        return photo ? [{ id: dish.id, name: dish.nameDish, price: formatARS(parseCurrency(dish.price)), type: FAVORITE_TYPES[dish.typeDish] ?? dish.typeDish, photo }] : [];
+      })
+      .slice(0, 8);
+  } catch {
+    return [];
+  }
+}
+
+export default async function HomePage() {
+  const favorites = await loadFavorites();
   return (
     <div id="contenido-portada" tabIndex={-1} className={styles.home}>
       <HomeScroll />
@@ -89,6 +117,18 @@ export default function HomePage() {
           ))}
         </ul>
       </section>
+
+      {favorites.length >= 3 && (
+        <section aria-labelledby="favoritos-title" className="overflow-hidden bg-cliente-sage py-14 sm:py-20">
+          <div className={`${styles.shell} mb-8 flex flex-wrap items-end justify-between gap-3`}>
+            <h2 id="favoritos-title" data-split className="text-4xl sm:text-6xl">Los favoritos de la casa</h2>
+            <Link className={styles.textLink} href="/menu">Ver toda la carta <ArrowRight aria-hidden="true" size={17} /></Link>
+          </div>
+          <div className={styles.shell}>
+            <DishCarousel dishes={favorites} />
+          </div>
+        </section>
+      )}
 
       <section id="en-el-salon" data-home-dining className={styles.dining} aria-labelledby="dining-title">
         <div data-dining-stage className={styles.diningStage}>

@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  getServiceMetrics, setMenuService, setTableZone, type ServiceMetrics,
+  getMenuSignals, getServiceMetrics, setMenuService, setTableZone, type ServiceMetrics,
 } from "@/actions/service/service-actions";
 import type { IMenu } from "@/interfaces";
 import type { Table } from "@/interfaces/reservation.interface";
@@ -13,7 +13,7 @@ const ALLERGENS = [
   ["soja", "Soja"], ["pescado", "Pescado"], ["mariscos", "Mariscos"], ["sesamo", "Sésamo"], ["carne", "Carne"],
 ] as const;
 const CHANNEL: Record<string, string> = {
-  salon: "Salón (mozo)", qr: "Mesa por QR", online: "Retiro online", delivery: "Delivery propio", pedidosya: "PedidosYa", rappi: "Rappi",
+  salon: "Salón (mozo)", qr: "Mesa por QR", preorder: "Pedido anticipado", online: "Retiro online", delivery: "Delivery propio", pedidosya: "PedidosYa", rappi: "Rappi",
 };
 
 type MenuWithService = IMenu & { allergens?: string | string[] | null; prepMinutes?: number | null };
@@ -21,6 +21,9 @@ const parseAllergens = (value: MenuWithService["allergens"]): string[] => {
   if (Array.isArray(value)) return value;
   try { return value ? JSON.parse(value) : []; } catch { return []; }
 };
+const STATION_OPTIONS: Array<[string, string]> = [
+  ["", "Según el tipo"], ["kitchen", "Cocina"], ["grill", "Parrilla"], ["salad", "Ensaladas"], ["dessert", "Postres"], ["bar", "Bar"],
+];
 const minutes = (value: number | null | undefined) => (value === null || value === undefined ? "Sin datos" : `${value} min`);
 
 export default function ServiceInsights({ menu, tables }: { menu: IMenu[]; tables: Table[] }) {
@@ -28,10 +31,26 @@ export default function ServiceInsights({ menu, tables }: { menu: IMenu[]; table
   const [metrics, setMetrics] = useState<ServiceMetrics | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [drafts, setDrafts] = useState<Record<number, { allergens: string[]; prep: string }>>(() =>
+  const [drafts, setDrafts] = useState<Record<number, { allergens: string[]; prep: string; station: string }>>(() =>
     Object.fromEntries((menu as MenuWithService[]).map((dish) => [dish.id, {
-      allergens: parseAllergens(dish.allergens), prep: dish.prepMinutes ? String(dish.prepMinutes) : "",
+      allergens: parseAllergens(dish.allergens), prep: dish.prepMinutes ? String(dish.prepMinutes) : "", station: "",
     }])));
+
+  // La lista pública de platos no trae alérgenos ni estación: se leen de las señales para no pisarlos al guardar.
+  useEffect(() => {
+    let active = true;
+    void getMenuSignals().then((signals) => {
+      if (!active) return;
+      setDrafts((current) => Object.fromEntries(Object.entries(current).map(([id, draft]) => {
+        const info = signals.dishes[id];
+        return [id, {
+          ...draft, station: info?.station ?? draft.station,
+          allergens: draft.allergens.length ? draft.allergens : info?.allergens ?? [],
+        }];
+      })));
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
   const [zones, setZones] = useState<Record<number, string>>(() =>
     Object.fromEntries(tables.map((table) => [table.id, (table as Table & { zone?: string | null }).zone ?? ""])));
   const [saving, setSaving] = useState<string | null>(null);
@@ -51,7 +70,7 @@ export default function ServiceInsights({ menu, tables }: { menu: IMenu[]; table
     setSaving(`dish-${id}`);
     setNotice("");
     try {
-      await setMenuService(id, draft.allergens, draft.prep ? Number(draft.prep) : null);
+      await setMenuService(id, draft.allergens, draft.prep ? Number(draft.prep) : null, draft.station || null);
       setNotice("Plato actualizado.");
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "No se pudo guardar el plato.");
@@ -113,6 +132,23 @@ export default function ServiceInsights({ menu, tables }: { menu: IMenu[]; table
         )}
       </section>
 
+      {metrics?.adaptive && (
+        <section className="staff-panel p-4 sm:p-6" aria-labelledby="adaptiva-titulo">
+          <h2 id="adaptiva-titulo" className="text-xl font-bold text-gray-950">Carta adaptativa</h2>
+          <p className="text-sm text-stone-600">Qué se pidió mientras alguna estación estaba saturada y cuánto vino de las sugerencias.</p>
+          <dl className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {([
+              ["Platos pedidos con saturación", metrics.adaptive.itemsDuringSaturation],
+              ["A estaciones saturadas", metrics.adaptive.itemsToSaturatedStations],
+              ["Desde sugerencias", metrics.adaptive.suggestedItems],
+              ["Uso de sugerencias", metrics.adaptive.suggestedShare === null ? "Sin datos" : `${metrics.adaptive.suggestedShare}%`],
+            ] as const).map(([label, value]) => (
+              <div key={label} className="rounded-xl bg-stone-50 p-3"><dt className="text-sm text-stone-600">{label}</dt><dd className="mt-1 text-2xl font-bold tabular-nums">{value}</dd></div>
+            ))}
+          </dl>
+        </section>
+      )}
+
       {metrics?.pilot && metrics.previous && (
         <section className="staff-panel overflow-x-auto p-4 sm:p-6" aria-labelledby="piloto-titulo">
           <h2 id="piloto-titulo" className="text-xl font-bold text-gray-950">Piloto: los tres tiempos clave</h2>
@@ -122,26 +158,27 @@ export default function ServiceInsights({ menu, tables }: { menu: IMenu[]; table
           </p>
           <table className="mt-3 w-full min-w-[36rem] text-left text-sm">
             <thead className="text-stone-600">
-              <tr><th className="py-2">Tiempo</th><th>Período anterior</th><th>Este período</th><th>Mesas con QR</th><th>Mesas con mozo</th></tr>
+              <tr><th className="py-2">Tiempo</th><th>Período anterior</th><th>Este período</th><th>Mesas con QR</th><th>Mesas con mozo</th><th>Con pedido anticipado</th></tr>
             </thead>
             <tbody className="divide-y divide-stone-200">
               {([
-                ["Llegada → primer pedido", metrics.previous.seatToOrder, metrics.pilot.seatToOrder, metrics.pilot.qr.seatToOrder, metrics.pilot.mozo.seatToOrder],
-                ["Plato listo → servido", metrics.previous.readyToServed, metrics.pilot.readyToServed, metrics.pilot.qr.readyToServed, metrics.pilot.mozo.readyToServed],
-                ["Llamado → atención", metrics.previous.callToAttention, metrics.pilot.callToAttention, null, null],
-              ] as const).map(([label, before, now, qr, mozo]) => (
+                ["Llegada → primer pedido", metrics.previous.seatToOrder, metrics.pilot.seatToOrder, metrics.pilot.qr.seatToOrder, metrics.pilot.mozo.seatToOrder, metrics.pilot.preorder?.seatToOrder],
+                ["Plato listo → servido", metrics.previous.readyToServed, metrics.pilot.readyToServed, metrics.pilot.qr.readyToServed, metrics.pilot.mozo.readyToServed, metrics.pilot.preorder?.readyToServed],
+                ["Llamado → atención", metrics.previous.callToAttention, metrics.pilot.callToAttention, null, null, null],
+              ] as const).map(([label, before, now, qr, mozo, preorder]) => (
                 <tr key={label}>
                   <td className="py-2 font-semibold">{label}</td>
                   <td className="tabular-nums">{minutes(before)}</td>
                   <td className={`tabular-nums font-semibold ${before !== null && now !== null ? (now < before ? "text-green-800" : now > before ? "text-red-700" : "") : ""}`}>{minutes(now)}</td>
                   <td className="tabular-nums">{label === "Llamado → atención" ? "—" : minutes(qr)}</td>
                   <td className="tabular-nums">{label === "Llamado → atención" ? "—" : minutes(mozo)}</td>
+                  <td className="tabular-nums">{label === "Llamado → atención" ? "—" : minutes(preorder)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           <p className="mt-2 text-xs text-stone-500">
-            Mesas: {metrics.pilot.sessions} este período ({metrics.pilot.qr.sessions} con QR, {metrics.pilot.mozo.sessions} con mozo) · {metrics.previous.sessions} el período anterior.
+            Mesas: {metrics.pilot.sessions} este período ({metrics.pilot.qr.sessions} con QR, {metrics.pilot.mozo.sessions} con mozo, {metrics.pilot.preorder?.sessions ?? 0} con pedido anticipado) · {metrics.previous.sessions} el período anterior.
           </p>
         </section>
       )}
@@ -206,16 +243,22 @@ export default function ServiceInsights({ menu, tables }: { menu: IMenu[]; table
       )}
 
       <section className="staff-panel p-4 sm:p-6" aria-labelledby="alergenos-titulo">
-        <h2 id="alergenos-titulo" className="text-xl font-bold text-gray-950">Alérgenos y tiempo de cada plato</h2>
-        <p className="text-sm text-stone-600">La mesa avisa a quien tiene restricciones y cocina coordina la salida con estos tiempos.</p>
+        <h2 id="alergenos-titulo" className="text-xl font-bold text-gray-950">Alérgenos, estación y tiempo de cada plato</h2>
+        <p className="text-sm text-stone-600">La mesa avisa a quien tiene restricciones y cocina coordina la salida con estos tiempos. La estación (por ejemplo, parrilla) permite avisar cuándo está saturada.</p>
         <ul className="mt-4 space-y-3">
           {menu.map((dish) => {
-            const draft = drafts[dish.id] ?? { allergens: [], prep: "" };
+            const draft = drafts[dish.id] ?? { allergens: [], prep: "", station: "" };
             return (
               <li key={dish.id} className="rounded-xl border border-stone-200 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-semibold">{dish.nameDish}</p>
                   <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 text-sm">Estación
+                      <select value={draft.station} onChange={(event) => setDrafts({ ...drafts, [dish.id]: { ...draft, station: event.target.value } })}
+                        className="min-h-11 rounded-lg border border-stone-300 bg-white px-2">
+                        {STATION_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </select>
+                    </label>
                     <label className="flex items-center gap-2 text-sm">Minutos
                       <input type="number" min={1} max={240} value={draft.prep} placeholder="auto"
                         onChange={(event) => setDrafts({ ...drafts, [dish.id]: { ...draft, prep: event.target.value } })}

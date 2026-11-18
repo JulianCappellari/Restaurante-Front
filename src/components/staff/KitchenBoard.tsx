@@ -19,6 +19,7 @@ import {
 import { AlertTriangle, Check, ClipboardList, Flame, Inbox, Loader2, PauseCircle, RefreshCcw, X } from "lucide-react";
 import { fireNextCourse, getPrepForecast, reportItemShortage, type PrepForecast } from "@/actions/service/service-actions";
 import RadarStrip from "./RadarStrip";
+import { listUpcomingPreOrders, type UpcomingPreOrder } from "@/actions/preorders/preorder-actions";
 
 /** Campos de servicio que el backend agrega a cada plato. */
 type KitchenItemExtras = {
@@ -170,6 +171,16 @@ export default function KitchenBoard({ initialOrders }: Props) {
     }), 12000);
   }, [orders]);
 
+  // Pedidos anticipados de quienes todavía no se sentaron: sirve para ir preparando la puesta a punto.
+  const [arriving, setArriving] = useState<UpcomingPreOrder[]>([]);
+  useEffect(() => {
+    let active = true;
+    const load = () => listUpcomingPreOrders().then((rows) => { if (active) setArriving(rows); }).catch(() => undefined);
+    void load();
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, 60_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, []);
+
   // La pestaña del navegador muestra cuántas comandas nuevas esperan.
   useEffect(() => {
     const waiting = activeOrders.filter((order) => order.state === "received").length;
@@ -261,6 +272,23 @@ export default function KitchenBoard({ initialOrders }: Props) {
       </StaffHeader>
 
       <div className="mb-4"><RadarStrip role="chef" title="Atención en cocina" /></div>
+
+      {arriving.length > 0 && (
+        <details className="staff-panel mb-4 p-4">
+          <summary className="cursor-pointer text-lg font-bold text-stone-950">
+            Llegan pronto · {arriving.length} {arriving.length === 1 ? "pedido anticipado" : "pedidos anticipados"}
+          </summary>
+          <p className="mt-1 text-sm text-stone-600">Todavía no están en cocina: empiezan cuando recepción abre la mesa.</p>
+          <ul className="mt-3 grid gap-2 md:grid-cols-2">
+            {arriving.map((row) => (
+              <li key={row.id} className="rounded-xl border border-stone-200 bg-stone-50 p-3 text-sm">
+                <p className="font-bold text-stone-950">{row.alias} · {row.people} pers. · {row.shift === "lunch" ? "Mediodía" : "Noche"}{row.tables.length > 0 && ` · Mesa ${row.tables.join(", ")}`}</p>
+                <p className="text-stone-700">{row.items.map((item) => `${item.quantity}× ${item.name}`).join(", ")}</p>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       {prepOpen && (
         <section aria-labelledby="prep-title" className="staff-panel mb-5 p-4 sm:p-5">
@@ -390,7 +418,7 @@ export default function KitchenBoard({ initialOrders }: Props) {
                     <article key={order.id} className={`kitchen-card rounded-xl border bg-white p-4 shadow-sm ${freshIds.has(order.id) ? "is-fresh border-amber-400 ring-4 ring-amber-300/70" : "border-stone-200"}`}>
                       <header className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold text-stone-500">#{order.id} · {order.deliveryType === "delivery" ? "Envío" : "Salón"}{freshIds.has(order.id) && <span className="ml-2 rounded-full bg-amber-400 px-2 py-0.5 text-amber-950">Nueva</span>}</p>
+                          <p className="text-xs font-semibold text-stone-500">#{order.id} · {order.deliveryType === "delivery" ? "Envío" : "Salón"}{(order as IOrder & { channel?: string }).channel === "preorder" && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-sky-900">Pedido anticipado</span>}{freshIds.has(order.id) && <span className="ml-2 rounded-full bg-amber-400 px-2 py-0.5 text-amber-950">Nueva</span>}</p>
                           <h3 className="mt-0.5 truncate text-2xl leading-tight text-stone-950">{table || orderServiceLabel(order)}</h3>
                           <p className="mt-0.5 truncate text-sm text-stone-600">{orderSummaryName(order)}</p>
                         </div>

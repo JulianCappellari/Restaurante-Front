@@ -85,6 +85,7 @@ function MenuPage({ initialCategory }: { initialCategory: string }) {
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
   const [soldOut, setSoldOut] = useState<Set<number>>(() => new Set());
+  const [slowDishes, setSlowDishes] = useState<Record<number, number>>({});
   const [usual, setUsual] = useState<Awaited<ReturnType<typeof getUsualDishes>> | null>(null);
 
   // Agotados según stock real y "lo de siempre" del cliente con sesión.
@@ -92,7 +93,13 @@ function MenuPage({ initialCategory }: { initialCategory: string }) {
     let active = true;
     void Promise.allSettled([getMenuSignals(), getUsualDishes()]).then(([signals, mine]) => {
       if (!active) return;
-      if (signals.status === "fulfilled") setSoldOut(new Set(signals.value.soldOut));
+      if (signals.status === "fulfilled") {
+        setSoldOut(new Set(signals.value.soldOut));
+        const kitchen = signals.value.kitchen;
+        if (kitchen?.enabled) {
+          setSlowDishes(Object.fromEntries(Object.values(kitchen.dishes).filter((dish) => dish.slow).map((dish) => [dish.menuId, dish.etaMinutes])));
+        }
+      }
       if (mine.status === "fulfilled" && mine.value.dishes.length) setUsual(mine.value);
     });
     return () => { active = false; };
@@ -246,7 +253,7 @@ function MenuPage({ initialCategory }: { initialCategory: string }) {
                           <p className="text-sm text-cliente-muted">{hint}</p>
                         </div>
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                          {dishes.map((item, index) => <FoodCard key={item.id} dish={item} index={index} soldOut={soldOut.has(item.id)} />)}
+                          {dishes.map((item, index) => <FoodCard key={item.id} dish={item} index={index} soldOut={soldOut.has(item.id)} slowMinutes={slowDishes[item.id]} />)}
                         </div>
                       </section>
                     );
@@ -254,7 +261,7 @@ function MenuPage({ initialCategory }: { initialCategory: string }) {
                 </div>
               ) : (
                 <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                  {filtered.map((item, index) => <FoodCard key={item.id} dish={item} index={index} soldOut={soldOut.has(item.id)} />)}
+                  {filtered.map((item, index) => <FoodCard key={item.id} dish={item} index={index} soldOut={soldOut.has(item.id)} slowMinutes={slowDishes[item.id]} />)}
                 </div>
               )
             ) : (

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const cookieName = "restaurante_visita";
-const reads = new Set(["menu", "status", "bill"]);
+const reads = new Set(["menu", "status", "bill", "kitchen"]);
 const writes = new Set(["join", "orders", "call", "pay", "preferences", "feedback", "fire", "substitution"]);
 const noCache = { "Cache-Control": "no-store" };
 

@@ -16,17 +16,20 @@ const readableAxiosError = (error: unknown, fallback: string) => {
   return error instanceof Error ? error : new Error(fallback);
 };
 
+export type PreOrderConversion = { converted: boolean; orderId: number | null; sentItems: number; skipped: string[]; error?: string };
+
 export async function createTableSession(payload: {
   tableId: number;
   partySize: number;
   bookingId?: number | null;
+  waitlistEntryId?: number | null;
   waiterId?: number | null;
   notes?: string | null;
 }) {
   const url = process.env.NEXT_PUBLIC_API_URL2;
   if (!url) throw new Error("API URL no definida");
   try {
-    const response = await axios.post<TableSession>(`${url}/table-sessions`, payload, {
+    const response = await axios.post<TableSession & { preOrder?: PreOrderConversion | null }>(`${url}/table-sessions`, payload, {
       headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     });
     return response.data;

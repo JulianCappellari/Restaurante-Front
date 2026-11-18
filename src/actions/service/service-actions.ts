@@ -32,10 +32,22 @@ export type FloorTable = {
   sessionId: number | null; minutes: number | null; partySize: number | null; total: number | null; paid: number | null;
 };
 
+export type KitchenStationState = { station: string; queueMinutes: number; capacity: number; saturated: boolean };
+export type KitchenSignals = {
+  enabled: boolean;
+  thresholds: { saturationMinutes: number; fastMinutes: number };
+  stations: KitchenStationState[];
+  dishes: Record<string, { menuId: number; station: string; etaMinutes: number; fast: boolean; slow: boolean }>;
+  suggestions: number[];
+  updatedAt: string;
+};
+export type AdaptiveSettings = { enabled: boolean; saturationMinutes: number; fastMinutes: number; capacity: Record<string, number> };
+
 export type MenuSignals = {
+  kitchen?: KitchenSignals | null;
   soldOut: number[];
   pairings: Record<string, number[]>;
-  dishes: Record<string, { allergens: string[]; prepMinutes: number; course: string }>;
+  dishes: Record<string, { allergens: string[]; prepMinutes: number; course: string; station?: string | null }>;
 };
 
 export type ServiceMetrics = {
@@ -46,10 +58,11 @@ export type ServiceMetrics = {
   waiters: Array<{ waiterId: number; name: string; tables: number; readyToServed: number | null }>;
   dishes: Array<{ menuId: number; name: string; units: number; orderToReady: number | null; likes: number; dislikes: number; price: number; cost: number | null; margin: number | null; lowMargin: boolean }>;
   channels: Array<{ channel: string; orders: number; revenue: number }>;
+  adaptive?: { itemsDuringSaturation: number; itemsToSaturatedStations: number; suggestedItems: number; suggestedShare: number | null };
 };
 
 type PilotGroup = { sessions: number; seatToOrder: number | null; readyToServed: number | null };
-export type PilotAverages = PilotGroup & { callToAttention: number | null; qr: PilotGroup; mozo: PilotGroup };
+export type PilotAverages = PilotGroup & { callToAttention: number | null; qr: PilotGroup; mozo: PilotGroup; preorder?: PilotGroup };
 
 export type PrepForecast = {
   weekday: number; basedOn: string;
@@ -95,9 +108,17 @@ export async function setTableZone(tableId: number, zone: string) {
   positive(tableId, "Mesa inválida.");
   return serviceRequest<{ id: number; zone: string | null }>(`service/tables/${tableId}/zone`, { method: "PUT", body: { zone } });
 }
-export async function setMenuService(menuId: number, allergens: string[], prepMinutes: number | null) {
+export async function setMenuService(menuId: number, allergens: string[], prepMinutes: number | null, station?: string | null) {
   positive(menuId, "Plato inválido.");
-  return serviceRequest<{ id: number; allergens: string[]; prepMinutes: number | null }>(`service/menu/${menuId}/service`, { method: "PUT", body: { allergens, prepMinutes } });
+  return serviceRequest<{ id: number; allergens: string[]; prepMinutes: number | null; station: string | null }>(`service/menu/${menuId}/service`, {
+    method: "PUT", body: { allergens, prepMinutes, ...(station === undefined ? {} : { station }) },
+  });
+}
+
+export const getKitchenSignals = async () => serviceRequest<KitchenSignals>("service/kitchen-signals", { auth: false });
+export const getAdaptiveSettings = async () => serviceRequest<AdaptiveSettings>("service/adaptive-settings");
+export async function saveAdaptiveSettings(input: Partial<Omit<AdaptiveSettings, "capacity">> & { capacity?: Record<string, number> }) {
+  return serviceRequest<AdaptiveSettings>("service/adaptive-settings", { method: "PUT", body: input });
 }
 
 export const listWaitlist = async () => serviceRequest<WaitlistEntry[]>("ops/waitlist");

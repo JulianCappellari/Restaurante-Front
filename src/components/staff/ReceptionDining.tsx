@@ -17,6 +17,7 @@ export default function ReceptionDining({ tables, bookings, sessions }: Props) {
   const [size, setSize] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date());
   const currentBookings = bookings.filter((booking) =>
     booking.status === "checked_in" && (booking.date || booking.bookingDate?.slice(0, 10)) === today
@@ -36,8 +37,15 @@ export default function ReceptionDining({ tables, bookings, sessions }: Props) {
     if (!selected || loading || session) return;
     setLoading(true);
     setError("");
+    setNotice("");
     try {
-      await createTableSession({ tableId, bookingId: booking?.id ?? null, partySize });
+      const created = await createTableSession({ tableId, bookingId: booking?.id ?? null, partySize });
+      const result = created.preOrder;
+      if (result?.converted) {
+        setNotice(`Pedido anticipado enviado a cocina: ${result.sentItems} ${result.sentItems === 1 ? "plato" : "platos"}.${result.skipped.length ? ` Sin stock: ${result.skipped.join(", ")}.` : ""}`);
+      } else if (result?.error) {
+        setNotice(result.error);
+      }
       router.refresh();
     } catch (error) {
       setError(error instanceof Error ? error.message : "No se pudo abrir la mesa.");
@@ -72,6 +80,7 @@ export default function ReceptionDining({ tables, bookings, sessions }: Props) {
         </button>}
       </form>
       {error && <p role="alert" className="mt-2 text-sm text-primario-900">{error}</p>}
+      {notice && <p role="status" className="mt-2 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-950">{notice}</p>}
       {selected && session && <TableDiningCode key={`${session.id}-${tableId}`} sessionId={session.id} tableNum={selected.tableNum} />}
     </section>
   );

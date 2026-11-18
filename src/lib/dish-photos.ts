@@ -3,6 +3,10 @@ import type { IMenu } from "@/interfaces/menu.interface";
 // Fotos ilustrativas del proyecto (public/fotos). Se usan cuando el plato no trae una foto propia
 // válida: las rutas del catálogo de ejemplo (/images/*.jpg) no existen en el front.
 const photoRules: Array<[RegExp, string]> = [
+  [/combo.*duo/, "/fotos/21-combo-duo.webp"],
+  [/combo.*oficina/, "/fotos/22-combo-oficina.webp"],
+  [/provoleta/, "/fotos/30-provoleta-entrada.webp"],
+  [/vino|cerveza|limonada|trago|fernet|cafe/, "/fotos/29-bebidas-barra.webp"],
   [/milanesa/, "/fotos/07-milanesa-napolitana-carta.webp"],
   [/bife/, "/fotos/03-principales-bife.webp"],
   [/ravioles/, "/fotos/08-ravioles-ricota-espinaca.webp"],

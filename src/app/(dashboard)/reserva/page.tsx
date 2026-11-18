@@ -29,7 +29,7 @@ export default async function ReservationPage() {
 
   return (
     <>
-      <CustomerIntro title="Reservá una mesa" description="Elegí cuándo querés venir y para cuántas personas. Después confirmá la reserva desde tu cuenta." image="/fotos/05-salon-reservas.webp" imageAlt="Salón del restaurante preparado para recibir reservas" />
+      <CustomerIntro title="Reservá una mesa" description="Elegí cuándo querés venir y para cuántas personas. Después confirmá la reserva desde tu cuenta." image="/fotos/23-recepcion-llegada.webp" imageAlt="Recepción del restaurante dando la bienvenida a dos clientes" />
       <div className="customer-shell py-7 sm:py-10">
         <div className="grid items-start gap-6 lg:grid-cols-[1.15fr_0.85fr]">
           <div data-reveal="left"><AvailabilityForm /></div>

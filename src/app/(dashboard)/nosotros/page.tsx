@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, CalendarDays, QrCode, Truck } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export const metadata: Metadata = {
   title: "Nosotros | Restaurante App",
@@ -15,8 +16,8 @@ const ways = [
     href: "/menu",
     cta: "Ver la carta",
     icon: Truck,
-    photo: "/fotos/17-delivery-empaque.webp",
-    alt: "Pedido empaquetado listo para el envío",
+    photo: "/fotos/27-entrega-a-domicilio.webp",
+    alt: "Repartidor entregando una bolsa con el pedido en la puerta de una casa",
   },
   {
     title: "Reserva",
@@ -38,9 +39,23 @@ const ways = [
   },
 ];
 
+const faqs = [
+  { q: "¿Necesito una app para pedir desde la mesa?", a: "No. Escaneás el QR de tu mesa con la cámara del celular, elegís los platos y el pedido llega a cocina. Si preferís, pedile al mozo y él lo carga por vos." },
+  { q: "¿Puedo dejar pedido antes de llegar?", a: "Sí. Si reservaste, entrá a Mis reservas y elegí \"Dejar pedido para cuando llegue\". Si estás en la fila de espera, recepción te manda un enlace. Cocina empieza a prepararlo recién cuando te sentás." },
+  { q: "¿Cómo se paga si somos varios?", a: "Cada comensal ve lo suyo en la cuenta y puede pagar su parte, la de otras personas o dividir en partes iguales. Los platos compartidos se reparten entre quienes los piden." },
+  { q: "Tengo alergias o una restricción alimentaria", a: "Marcalo en tus preferencias al entrar a la carta de la mesa. Los platos que no te convienen se señalan y cocina recibe un aviso en cada plato afectado. Igual avisale al mozo." },
+  { q: "¿Cuánto demora mi pedido?", a: "Cada plato muestra un tiempo estimado. Si una parte de la cocina está con mucha demanda, te avisamos la demora y te sugerimos platos que salen antes." },
+];
+
 const gallery = [
+  { photo: "/fotos/28-fachada-entrada.webp", caption: "La entrada" },
   { photo: "/fotos/05-salon-reservas.webp", caption: "El salón" },
+  { photo: "/fotos/24-reserva-grupo.webp", caption: "Mesas para grupos" },
   { photo: "/fotos/16-cocina-pasta-artesanal.webp", caption: "Pasta hecha en la cocina" },
+  { photo: "/fotos/26-comandas-pase-cocina.webp", caption: "El pase de cocina" },
+  { photo: "/fotos/31-parrilla-brasas-cortes.webp", caption: "La parrilla" },
+  { photo: "/fotos/35-mesa-mixta-cenital.webp", caption: "Una mesa para todos" },
+  { photo: "/fotos/29-bebidas-barra.webp", caption: "La barra" },
   { photo: "/fotos/20-portada-mesa-compartida.webp", caption: "Platos para compartir" },
   { photo: "/fotos/08-ravioles-ricota-espinaca.webp", caption: "Ravioles de ricota" },
   { photo: "/fotos/14-flan-mixto.webp", caption: "Flan mixto" },
@@ -128,6 +143,21 @@ export default function AboutPage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      {/* Preguntas frecuentes */}
+      <section aria-labelledby="faq-title" className="py-16 sm:py-24">
+        <div className="customer-shell grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+          <h2 id="faq-title" data-split className="max-w-[10ch] text-5xl leading-[0.95] sm:text-7xl">Preguntas frecuentes</h2>
+          <Accordion type="single" collapsible data-reveal="up">
+            {faqs.map(({ q, a }, index) => (
+              <AccordionItem key={q} value={`faq-${index}`}>
+                <AccordionTrigger>{q}</AccordionTrigger>
+                <AccordionContent>{a}</AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
       </section>
 
       {/* 5. Cierre */}
